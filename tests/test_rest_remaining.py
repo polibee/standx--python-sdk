@@ -259,3 +259,41 @@ def test_rate_limit_response_maps_to_retryable_error() -> None:
     assert caught.value.code is ErrorCode.RATE_LIMITED
     assert caught.value.retryable is True
     assert caught.value.retry_after_seconds == 2.0
+
+
+def test_http_transport_maps_auth_and_validation_errors() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("validation"):
+            return httpx.Response(
+                400,
+                headers={"x-request-id": "req-400"},
+                json={"message": "invalid qty"},
+            )
+        return httpx.Response(401, json={"message": "token expired"})
+
+    transport = HttpTransport("https://perps.standx.com", httpx.MockTransport(handler))
+    with pytest.raises(StandXError) as validation:
+        asyncio.run(transport.get("/validation"))
+    with pytest.raises(StandXError) as auth:
+        asyncio.run(transport.get("/auth"))
+
+    assert validation.value.code is ErrorCode.VALIDATION_ERROR
+    assert validation.value.request_id == "req-400"
+    assert validation.value.message == "invalid qty"
+    assert auth.value.code is ErrorCode.AUTH_FAILED
+    assert auth.value.message == "token expired"
+
+
+def test_http_transport_maps_network_timeout_and_uses_configured_timeout() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    transport = HttpTransport(
+        "https://perps.standx.com", httpx.MockTransport(handler), timeout_seconds=2.5
+    )
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(transport.get("/slow"))
+
+    assert transport.timeout_seconds == 2.5
+    assert caught.value.code is ErrorCode.REQUEST_TIMEOUT
+    assert caught.value.retryable is True

@@ -41,9 +41,13 @@ class StandXClient:
         auth_transport: AuthTransport | None = None,
     ) -> None:
         self.config = config
-        transport = http_transport or HttpTransport(config.base_url)
+        transport = http_transport or HttpTransport(
+            config.base_url, timeout_seconds=config.timeout_seconds
+        )
         self.http_transport = transport
-        self.auth_transport = auth_transport or HttpTransport(config.auth_base_url)
+        self.auth_transport = auth_transport or HttpTransport(
+            config.auth_base_url, timeout_seconds=config.timeout_seconds
+        )
         self.auth = AuthService(
             self.auth_transport,
             signer,
