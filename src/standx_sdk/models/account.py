@@ -25,10 +25,21 @@ class PositionSnapshot:
     symbol: str
     qty: Decimal
     leverage: int
+    bankruptcy_price: Decimal | None = None
+    created_at: str | None = None
     entry_price: Decimal | None = None
     entry_value: Decimal | None = None
+    holding_margin: Decimal | None = None
+    initial_margin: Decimal | None = None
+    liq_price: Decimal | None = None
+    maint_margin: Decimal | None = None
+    margin_asset: str | None = None
     margin_mode: str | None = None
+    mark_price: Decimal | None = None
+    mmr: Decimal | None = None
+    position_value: Decimal | None = None
     status: str | None = None
     realized_pnl: Decimal | None = None
     upnl: Decimal | None = None
+    time: str | None = None
     updated_at: str | None = None

@@ -181,13 +181,28 @@ def test_account_api_returns_documented_typed_snapshots() -> None:
             json={
                 "result": [
                     {
+                        "bankruptcy_price": "109608.01",
+                        "created_at": "2025-08-10T09:05:50.265265Z",
                         "id": 15,
                         "symbol": "BTC-USD",
                         "qty": "0.5",
                         "entry_price": "50000",
+                        "entry_value": "25000",
+                        "holding_margin": "2500",
+                        "initial_margin": "2500",
                         "leverage": "10",
+                        "liq_price": "112373.50",
+                        "maint_margin": "625",
+                        "margin_asset": "DUSD",
                         "margin_mode": "isolated",
+                        "mark_price": "49900",
+                        "mmr": "0.025",
+                        "position_value": "24950",
+                        "realized_pnl": "31.61532",
                         "status": "open",
+                        "time": "2025-08-11T03:41:40.922818Z",
+                        "updated_at": "2025-08-10T09:05:50.265265Z",
+                        "upnl": "-50",
                     }
                 ]
             },
@@ -204,6 +219,12 @@ def test_account_api_returns_documented_typed_snapshots() -> None:
     assert balance.balance == Decimal("10.5")
     assert isinstance(positions[0], PositionSnapshot)
     assert positions[0].qty == Decimal("0.5")
+    assert positions[0].bankruptcy_price == Decimal("109608.01")
+    assert positions[0].holding_margin == Decimal(2500)
+    assert positions[0].liq_price == Decimal("112373.50")
+    assert positions[0].mmr == Decimal("0.025")
+    assert positions[0].margin_asset == "DUSD"
+    assert positions[0].time == "2025-08-11T03:41:40.922818Z"
 
 
 def test_orders_api_queries_typed_order_snapshots() -> None:
