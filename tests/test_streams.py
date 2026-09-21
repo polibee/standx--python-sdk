@@ -220,6 +220,34 @@ def test_order_response_stream_requires_authentication_header_for_orders() -> No
         stream.request("order:new", {"qty": "0.1"}, request_id="request-1")
 
 
+def test_order_response_stream_requires_matching_non_empty_signature_headers() -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+
+    with pytest.raises(ValueError, match="x-request-id"):
+        stream.request(
+            "order:cancel",
+            {"cl_ord_id": "client-1"},
+            request_id="request-1",
+            header={
+                "x-request-id": "request-2",
+                "x-request-timestamp": "1700000000000",
+                "x-request-signature": "signature",
+            },
+        )
+
+    with pytest.raises(ValueError, match="non-empty"):
+        stream.request(
+            "order:new",
+            {"qty": "0.1"},
+            request_id="request-1",
+            header={
+                "x-request-id": "request-1",
+                "x-request-timestamp": "",
+                "x-request-signature": "signature",
+            },
+        )
+
+
 def test_order_response_stream_tracks_request_ids_until_response() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
 

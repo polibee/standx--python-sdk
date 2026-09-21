@@ -704,6 +704,8 @@ Order Response Stream 的 `request()`和`send_request()`支持调用方注入文
 
 Order Response Stream 的 `order:new`和`order:cancel`必须提供 `x-request-id`、`x-request-timestamp`和`x-request-signature`三项认证 header；`auth:login`可以使用空 header。
 
+其中 `x-request-id`必须与消息 `request_id`一致，`x-request-timestamp`和`x-request-signature`不能为空。
+
 ## 15. 验收标准
 
 项目完成必须同时满足：

@@ -48,6 +48,10 @@ class OrderResponseStream(StreamBase):
             }
             if not required_headers.issubset(request_header):
                 raise ValueError("order requests require authentication header")
+            if request_header["x-request-id"] != request_id:
+                raise ValueError("x-request-id must match request_id")
+            if not request_header["x-request-timestamp"] or not request_header["x-request-signature"]:
+                raise ValueError("authentication headers must be non-empty")
         self._pending_request_ids.add(request_id)
         self._pending_requests[request_id] = {"method": method, "params": dict(params)}
         return {
