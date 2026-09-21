@@ -507,6 +507,8 @@ Depth book 的 asks/bids 顺序不保证，SDK 不能默认假定已排序。连
 
 Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`method`、`header`、JSON 字符串形式的 `params`。HTTP `new_order`和 `cancel_order`的 `x-session-id`必须与 WebSocket 的 `session_id`一致。响应需要区分 `accepted`、成功和拒绝；`accepted`只表示网关接受处理，不表示已经成交或撤单完成。
 
+`OrderResponseStream.decode_response()`将文档中的响应映射为 `OrderResponseEvent`：`status=accepted`映射为 `accepted`，`code=0`且无 accepted 状态映射为 `success`，`code>=400`映射为 `rejected`，其他情况保留为 `unknown`。解码后只清理对应的 pending request，不会把断线中的 `order:new`或`order:cancel`重新发送，避免产生重复外部副作用。
+
 订单响应流必须使用 `session_id + request_id`做关联，不能只使用单一 request ID。断线期间未确认的请求不能自动判定为成功或失败，应进入本地未知状态并由 REST 查询恢复。
 
 SDK 的 stream 对象必须记录已成功订阅的 channel，并在连接重建后按原顺序重放订阅。调用方显式关闭后不得自动重连。Order Response Stream 必须记录 pending `request_id`，收到响应后移除对应 ID；连接断开时仍 pending 的订单请求保持本地未知状态，不能伪造成功或失败。

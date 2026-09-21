@@ -108,3 +108,25 @@ def test_fake_websocket_server_round_trips_stream_messages() -> None:
     assert message == {
         "subscribe": {"channel": "price", "symbol": "BTC-USD"},
     }
+
+
+def test_order_response_reconnect_does_not_resend_pending_side_effect() -> None:
+    class FlakyOrderTransport(FlakyTransport):
+        pass
+
+    transport = FlakyOrderTransport(failures=0)
+    stream = OrderResponseStream(
+        "wss://example.test/ws-api/v1", session_id="s", transport=transport  # type: ignore[arg-type]
+    )
+
+    async def scenario() -> None:
+        await stream.connect()
+        await stream.send_request(
+            "order:new", {"cl_ord_id": "client-1"}, request_id="request-1"
+        )
+        await stream.reconnect()
+
+    asyncio.run(scenario())
+
+    assert stream.pending_request_ids == {"request-1"}
+    assert len(transport.sent) == 1

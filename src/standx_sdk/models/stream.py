@@ -56,6 +56,14 @@ class UserTradeEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class OrderResponseEvent:
+    request_id: str
+    code: int
+    state: str
+    message: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class PriceEvent:
     symbol: str
     last_price: Decimal

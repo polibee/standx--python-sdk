@@ -50,6 +50,8 @@ await client.close_async()
 final matching. Use `client.streams.order_response()` with a shared
 `session_id` to correlate asynchronous order responses.
 
+Order Response Stream 的 `accepted` 只表示网关接受请求；最终订单状态仍需读取用户订单流或通过 REST 查询恢复。断线重连不会自动重复发送创建订单或撤单请求。
+
 登录成功后 token 会自动同步到客户端共享的 REST transport。异步应用退出时调用 `await client.close_async()` 释放 HTTP 和 WebSocket 资源。
 
 For a request that was submitted but not confirmed, query the order again with

@@ -4,6 +4,7 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from ..models.stream import OrderResponseEvent
 from ..transport.websocket import WebSocketTransport
 from .base import StreamBase
 
@@ -44,6 +45,28 @@ class OrderResponseStream(StreamBase):
             self._pending_requests.pop(request_id, None)
         return response
 
+    def decode_response(self, response: dict[str, Any]) -> OrderResponseEvent:
+        request_id = response.get("request_id")
+        if not isinstance(request_id, str):
+            raise TypeError("Order Response is missing request_id")
+        code = int(response.get("code", 0))
+        status = response.get("status")
+        if status == "accepted":
+            state = "accepted"
+        elif code >= 400:
+            state = "rejected"
+        elif code == 0:
+            state = "success"
+        else:
+            state = "unknown"
+        self.resolve(response)
+        return OrderResponseEvent(
+            request_id=request_id,
+            code=code,
+            state=state,
+            message=response.get("message") if isinstance(response.get("message"), str) else None,
+        )
+
     async def recover_pending(
         self,
         query: Callable[[str], Awaitable[dict[str, Any]]],
@@ -60,7 +83,15 @@ class OrderResponseStream(StreamBase):
         return recovered
 
     async def connect(self) -> None:
+        if self.closed:
+            raise RuntimeError("closed stream cannot connect")
         await self.transport.connect()
+
+    async def reconnect(self) -> None:
+        if self.closed:
+            raise RuntimeError("closed stream cannot reconnect")
+        await self.transport.close()
+        await self.connect()
 
     async def send_request(self, method: str, params: dict[str, Any], *, request_id: str) -> None:
         await self.transport.send(
