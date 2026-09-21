@@ -22,6 +22,8 @@ def test_client_exposes_domain_services_and_stream_factories() -> None:
     assert client.orders is not None
     assert client.streams.market() is not None
     assert client.streams.order_response() is not None
+    assert client.market_stream() is not None
+    assert client.order_response_stream(session_id="direct") is not None
 
 
 def test_client_uses_configured_stream_endpoints_and_injected_http_transport() -> None:

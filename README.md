@@ -61,7 +61,7 @@ change = await client.account.change_leverage_config("BTC-USD", 10)
 # change means the request was accepted; query again to confirm final config.
 config = await client.account.position_config_snapshot("BTC-USD")
 
-market = client.streams.market()
+market = client.market_stream()
 await market.connect()
 await market.authenticate("<jwt-from-login>")
 await market.subscribe("price", "BTC-USD")

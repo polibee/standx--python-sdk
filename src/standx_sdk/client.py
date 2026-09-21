@@ -74,6 +74,21 @@ class StandXClient:
         self.orders = OrdersApi(transport)
         self.streams = _Streams(config)
 
+    def market_stream(self, *, transport: WebSocketTransport | None = None) -> MarketStream:
+        """Create and register a Market Stream using the configured endpoint."""
+
+        return self.streams.market(transport=transport)
+
+    def order_response_stream(
+        self,
+        *,
+        session_id: str = "sdk-session",
+        transport: WebSocketTransport | None = None,
+    ) -> OrderResponseStream:
+        """Create and register an Order Response Stream."""
+
+        return self.streams.order_response(session_id=session_id, transport=transport)
+
     async def close_async(self) -> None:
         await self.streams.close_async()
         await self.http_transport.aclose()
