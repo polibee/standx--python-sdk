@@ -236,16 +236,26 @@ def test_orders_api_queries_typed_order_snapshots() -> None:
             json={
                 "id": 101,
                 "cl_ord_id": "client-1",
+                "avail_locked": "3.0",
+                "closed_block": -1,
+                "created_at": "2025-08-11T03:35:25.559151Z",
+                "created_block": -1,
                 "symbol": "BTC-USD",
                 "side": "buy",
                 "order_type": "limit",
                 "qty": "0.1",
                 "fill_qty": "0",
                 "fill_avg_price": "0",
+                "liq_id": 0,
+                "margin": "10",
                 "price": "50000",
+                "position_id": 15,
+                "remark": "",
                 "status": "open",
+                "source": "user",
                 "time_in_force": "gtc",
                 "reduce_only": False,
+                "user": "bsc_0x...",
             },
         )
 
@@ -255,6 +265,11 @@ def test_orders_api_queries_typed_order_snapshots() -> None:
     assert isinstance(order, Order)
     assert order.id == 101
     assert order.qty == Decimal("0.1")
+    assert order.avail_locked == Decimal("3.0")
+    assert order.margin == Decimal(10)
+    assert order.position_id == 15
+    assert order.source == "user"
+    assert order.created_at == "2025-08-11T03:35:25.559151Z"
 
 
 def test_account_api_maps_user_trades_and_funding_history() -> None:

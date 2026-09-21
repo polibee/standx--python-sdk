@@ -188,5 +188,20 @@ def _order_from(value: object) -> Order:
         price=None if typed.get("price") is None else Decimal(str(typed["price"])),
         leverage=None if typed.get("leverage") is None else int(typed["leverage"]),
         margin_mode=typed.get("margin_mode"),
+        avail_locked=(
+            None if typed.get("avail_locked") is None else Decimal(str(typed["avail_locked"]))
+        ),
+        closed_block=None if typed.get("closed_block") is None else int(typed["closed_block"]),
+        created_at=typed.get("created_at"),
+        created_block=(
+            None if typed.get("created_block") is None else int(typed["created_block"])
+        ),
+        liq_id=None if typed.get("liq_id") is None else int(typed["liq_id"]),
+        margin=None if typed.get("margin") is None else Decimal(str(typed["margin"])),
+        payload=typed.get("payload"),
+        position_id=None if typed.get("position_id") is None else int(typed["position_id"]),
+        remark=typed.get("remark"),
+        source=typed.get("source"),
+        user=typed.get("user"),
         updated_at=typed.get("updated_at"),
     )

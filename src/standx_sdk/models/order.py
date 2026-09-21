@@ -88,4 +88,15 @@ class Order:
     price: Decimal | None = None
     leverage: int | None = None
     margin_mode: str | None = None
+    avail_locked: Decimal | None = None
+    closed_block: int | None = None
+    created_at: str | None = None
+    created_block: int | None = None
+    liq_id: int | None = None
+    margin: Decimal | None = None
+    payload: object | None = None
+    position_id: int | None = None
+    remark: str | None = None
+    source: str | None = None
+    user: str | None = None
     updated_at: str | None = None
