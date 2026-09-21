@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
 
+from ..models.market import InstrumentRules
 from ..models.order import CreateOrderRequest, Order
 from ..transport.http import HttpTransport
+from ..validation.orders import validate_order
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,7 +23,21 @@ class OrdersApi:
     def __init__(self, transport: HttpTransport) -> None:
         self._transport = transport
 
-    async def create(self, request: CreateOrderRequest) -> SubmissionResult:
+    async def create(
+        self,
+        request: CreateOrderRequest,
+        *,
+        rules: InstrumentRules | None = None,
+        position_qty: Decimal | None = None,
+        pending_reduce_only_qty: Decimal = Decimal(0),
+    ) -> SubmissionResult:
+        if rules is not None:
+            validate_order(
+                request,
+                rules,
+                position_qty=position_qty,
+                pending_reduce_only_qty=pending_reduce_only_qty,
+            )
         body: dict[str, object] = {
             "symbol": request.symbol,
             "side": request.side.value,

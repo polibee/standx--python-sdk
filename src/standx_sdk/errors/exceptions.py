@@ -17,3 +17,17 @@ class StandXError(Exception):
         self.request_id = request_id
         self.retryable = retryable
         self.retry_after_seconds: float | None = None
+
+
+class OrderValidationError(StandXError):
+    """A local order check failed against documented symbol rules."""
+
+    def __init__(self, field: str, value: object, rule: str) -> None:
+        self.field = field
+        self.value = str(value)
+        self.rule = rule
+        super().__init__(
+            code=ErrorCode.VALIDATION_ERROR,
+            message=f"{field}={value} violates {rule}",
+            retryable=False,
+        )

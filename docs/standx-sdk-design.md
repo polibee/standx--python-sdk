@@ -300,6 +300,8 @@ class InstrumentRules:
 7. 价格上下限按服务端公布的 `price_cap_ratio`和 `price_floor_ratio`执行；若公式未在协议文档中明确，SDK 不自行推导，只保留服务端错误。
 8. 通过已确认的本地校验后，才允许序列化和发送请求。
 
+`OrdersApi.create()`接受可选的 `InstrumentRules`、`position_qty`和`pending_reduce_only_qty`，调用 `validation.validate_order()`执行上述本地校验。未提供规则时 SDK 不猜测市场限制；提供规则后不合规输入在请求发送前抛出 `OrderValidationError`，不会静默四舍五入或修改订单。
+
 默认行为是拒绝不符合数量或价格精度的输入，而不是静默四舍五入。数量使用 `qty_tick_decimals`，价格使用 `price_tick_decimals`。若未来提供显式的量化辅助方法，也必须返回新的订单值并由调用方明确选择，不得在 `orders.create()`内部隐式修改用户订单。
 
 ```python

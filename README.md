@@ -50,6 +50,8 @@ await client.close_async()
 
 REST transport 默认启用 StandX credit token-bucket 限流：每次请求 45 credits、900 credits burst、每秒补充 1,000 credits。创建订单和撤单不会因为 429 被 SDK 自动重试。
 
+下单前可将 `await client.markets.symbol_info(symbol)` 返回的规则传给 `client.orders.create(order, rules=rules)`；SDK 会按 StandX 的最小/最大数量、精度、最大杠杆和 reduce-only 可用仓位进行本地拒绝校验。
+
 `new_order` and `cancel_order` responses indicate submission/acceptance, not
 final matching. Use `client.streams.order_response()` with a shared
 `session_id` to correlate asynchronous order responses.
