@@ -1,5 +1,7 @@
 """StandX asynchronous order response stream envelopes."""
 
+import asyncio
+import inspect
 import json
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -89,6 +91,31 @@ class OrderResponseStream(StreamBase):
         if self.closed:
             raise RuntimeError("closed stream cannot connect")
         await self.transport.connect()
+
+    async def connect_with_backoff(
+        self,
+        *,
+        max_attempts: int = 5,
+        initial_delay: float = 0.5,
+        sleep: Callable[[float], object] | None = None,
+    ) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
+        if initial_delay < 0:
+            raise ValueError("initial_delay must not be negative")
+        pause = sleep or asyncio.sleep
+        delay = initial_delay
+        for attempt in range(max_attempts):
+            try:
+                await self.connect()
+                return
+            except Exception:
+                if attempt == max_attempts - 1:
+                    raise
+                result = pause(delay)
+                if inspect.isawaitable(result):
+                    await result
+                delay *= 2
 
     async def reconnect(self) -> None:
         if self.closed:

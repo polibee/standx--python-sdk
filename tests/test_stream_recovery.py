@@ -193,3 +193,23 @@ def test_order_response_reconnect_does_not_resend_pending_side_effect() -> None:
 
     assert stream.pending_request_ids == {"request-1"}
     assert len(transport.sent) == 1
+
+
+def test_order_response_stream_retries_connection_with_exponential_backoff() -> None:
+    transport = FlakyTransport(failures=2)
+    stream = OrderResponseStream(
+        "wss://perps.standx.com/ws-api/v1", session_id="s", transport=transport  # type: ignore[arg-type]
+    )
+    delays: list[float] = []
+
+    async def scenario() -> None:
+        await stream.connect_with_backoff(
+            max_attempts=3,
+            initial_delay=0.25,
+            sleep=lambda delay: delays.append(delay),
+        )
+
+    asyncio.run(scenario())
+
+    assert transport.connect_count == 3
+    assert delays == [0.25, 0.5]

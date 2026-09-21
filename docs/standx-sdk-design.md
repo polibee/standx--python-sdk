@@ -533,6 +533,8 @@ SDK 的 stream 对象必须记录已成功订阅的 channel，并在连接重建
 
 连接建立支持注入 sleep 函数的指数退避：默认最多 5 次尝试、初始等待 0.5 秒，每次失败后等待时间翻倍；最后一次失败原样抛出。调用方显式关闭后，连接和重连都会拒绝执行。退避策略不对订单结果做乐观判断，也不会把连接失败转换为订单失败。
 
+Market Stream 与 Order Response Stream 都提供 `connect_with_backoff()`，使用相同的默认退避参数和可注入的 `sleep` 函数。Order Response Stream 的退避只重试 WebSocket 建连，不会重发 pending 的 `order:new` 或 `order:cancel` 请求。
+
 `standx_sdk.testing.FakeWebSocketServer` 和 `FakeWebSocketTransport` 提供纯内存的双向消息队列，用于离线验证订阅、接收和协议恢复，不访问真实 StandX 网络。
 
 Order Response Stream 会保留 pending 请求的 `method` 与参数。断线恢复时，调用方传入按 `cl_ord_id` 查询 REST 状态的异步函数，SDK 逐个查询拥有客户端订单 ID 的未确认请求，返回查询结果并清理已恢复的 request ID。没有 `cl_ord_id` 的请求不会被猜测成功或失败，继续保持 pending/未知状态。
