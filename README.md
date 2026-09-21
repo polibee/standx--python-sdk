@@ -39,6 +39,7 @@ await market.connect()
 await market.subscribe("price", "BTC-USD")
 price_event = await market.receive()
 await market.close_async()
+await client.close_async()
 ```
 
 默认配置使用 StandX 文档中的 REST 和两个 WebSocket endpoint。离线测试可注入自定义 `HttpTransport`，也可以通过 `ClientConfig` 覆盖 endpoint；SDK 不会在测试中访问真实账户。
@@ -46,6 +47,8 @@ await market.close_async()
 `new_order` and `cancel_order` responses indicate submission/acceptance, not
 final matching. Use `client.streams.order_response()` with a shared
 `session_id` to correlate asynchronous order responses.
+
+登录成功后 token 会自动同步到客户端共享的 REST transport。异步应用退出时调用 `await client.close_async()` 释放 HTTP 和 WebSocket 资源。
 
 For a request that was submitted but not confirmed, query the order again with
 the client order ID. The typed REST methods return `Order`, `BalanceSnapshot`,

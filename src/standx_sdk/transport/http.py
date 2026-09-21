@@ -37,6 +37,17 @@ class HttpTransport:
             self._headers["x-session-id"] = session_id
         self._request_signer = request_signer
 
+    @property
+    def token(self) -> str | None:
+        value = self._headers.get("Authorization")
+        return value.removeprefix("Bearer ") if value else None
+
+    def set_token(self, token: str | None) -> None:
+        if token is None:
+            self._headers.pop("Authorization", None)
+        else:
+            self._headers["Authorization"] = f"Bearer {token}"
+
     async def get(self, path: str, *, params: Mapping[str, Any] | None = None) -> Any:
         response = await self._client.get(path, params=params, headers=self._headers)
         self._raise_for_status(response)

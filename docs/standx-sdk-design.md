@@ -91,6 +91,8 @@ client = StandXClient(
 
 `StandXClient`接受可选的 `http_transport`，所有 REST domain service 共享同一个实例；WebSocket endpoint 从 `ClientConfig`读取，不能在 facade 内硬编码。这样 Fake HTTP/WebSocket transport 可以在离线测试和 PAPER 环境中替换真实网络实现。
 
+`AuthService.login()`成功后会通过 token sink 更新共享 REST transport 的 Bearer token，因此后续账户、订单和市场请求使用同一个认证状态。`StandXClient.close_async()`负责关闭已创建的 stream、REST transport 和认证 transport；调用方在异步应用退出时必须调用它。
+
 ### 5.2 服务入口
 
 ```python

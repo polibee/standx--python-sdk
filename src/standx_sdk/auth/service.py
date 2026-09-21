@@ -2,6 +2,7 @@
 
 import base64
 import json
+from collections.abc import Callable
 from typing import Any, Protocol, cast
 
 from nacl.signing import SigningKey
@@ -42,9 +43,16 @@ def _jwt_payload(token: str) -> dict[str, Any]:
 
 
 class AuthService:
-    def __init__(self, transport: AuthTransport, signer: WalletSigner | None = None) -> None:
+    def __init__(
+        self,
+        transport: AuthTransport,
+        signer: WalletSigner | None = None,
+        *,
+        on_token: Callable[[str], None] | None = None,
+    ) -> None:
         self._transport = transport
         self._signer = signer
+        self._on_token = on_token
         self.token: str | None = None
 
     async def login(self, expires_seconds: int = 604800) -> LoginResponse:
@@ -84,4 +92,6 @@ class AuthService:
             perps_alpha=bool(response.get("perpsAlpha", False)),
         )
         self.token = result.token
+        if self._on_token is not None:
+            self._on_token(result.token)
         return result
