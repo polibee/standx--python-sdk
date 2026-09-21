@@ -116,20 +116,37 @@ class MarketStream(StreamBase):
             unsupported = set(streams) - _USER_CHANNELS
             if unsupported:
                 raise ValueError(f"unsupported authenticated stream: {min(unsupported)}")
+        self._authenticated = False
         auth: dict[str, Any] = {"token": token}
         if impersonate is not None:
             auth["impersonate"] = impersonate
         if streams is not None:
             auth["streams"] = [{"channel": channel} for channel in streams]
         await self.transport.send(json.dumps({"auth": auth}, separators=(",", ":")))
-        response = json.loads(await self.transport.receive())
+        try:
+            response = json.loads(await self.transport.receive())
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "invalid JSON from Market Stream authentication",
+            ) from exc
         if (
             not isinstance(response, dict)
             or response.get("channel") != "auth"
             or not isinstance(response.get("data"), dict)
-            or response["data"].get("code") != 200
         ):
-            raise RuntimeError("Market Stream authentication failed")
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "invalid Market Stream authentication response",
+            )
+        code = response["data"].get("code")
+        if code != 200:
+            server_code = code if isinstance(code, (int, str)) else None
+            raise StandXError(
+                ErrorCode.AUTH_FAILED,
+                "Market Stream authentication failed",
+                server_code=server_code,
+            )
         self._authenticated = True
         self._auth_token = token
         self._impersonate = impersonate

@@ -49,6 +49,16 @@ class SequenceAuthFakeTransport(FakeTransport):
         return self.incoming.pop(0)
 
 
+class RejectedAuthFakeTransport(FakeTransport):
+    async def receive(self) -> str:
+        return '{"channel":"auth","data":{"code":401,"msg":"expired"}}'
+
+
+class MalformedAuthFakeTransport(FakeTransport):
+    async def receive(self) -> str:
+        return "not-json"
+
+
 def test_market_stream_builds_documented_subscription_envelope() -> None:
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
 
@@ -135,8 +145,9 @@ def test_market_stream_reconnect_auth_failure_clears_authenticated_state() -> No
     async def scenario() -> None:
         await stream.connect()
         await stream.authenticate("jwt-token")
-        with pytest.raises(RuntimeError, match="authentication failed"):
+        with pytest.raises(StandXError) as caught:
             await stream.reconnect()
+        assert caught.value.code is ErrorCode.AUTH_FAILED
 
     asyncio.run(scenario())
 
@@ -151,6 +162,35 @@ def test_market_stream_rejects_unsupported_auth_stream() -> None:
             await stream.authenticate("jwt-token", streams=["price"])
 
     asyncio.run(scenario())
+
+
+def test_market_stream_maps_rejected_authentication_to_auth_failed() -> None:
+    stream = MarketStream(
+        "wss://perps.standx.com/ws-stream/v1", transport=RejectedAuthFakeTransport()  # type: ignore[arg-type]
+    )
+
+    async def scenario() -> None:
+        with pytest.raises(StandXError) as caught:
+            await stream.authenticate("jwt-token")
+        assert caught.value.code is ErrorCode.AUTH_FAILED
+        assert caught.value.server_code == 401
+
+    asyncio.run(scenario())
+    assert stream.authenticated is False
+
+
+def test_market_stream_maps_malformed_authentication_to_protocol_error() -> None:
+    stream = MarketStream(
+        "wss://perps.standx.com/ws-stream/v1", transport=MalformedAuthFakeTransport()  # type: ignore[arg-type]
+    )
+
+    async def scenario() -> None:
+        with pytest.raises(StandXError) as caught:
+            await stream.authenticate("jwt-token")
+        assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+    asyncio.run(scenario())
+    assert stream.authenticated is False
 
 
 def test_market_stream_rejects_user_subscription_before_authentication() -> None:
