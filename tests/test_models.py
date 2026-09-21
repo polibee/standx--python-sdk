@@ -69,6 +69,22 @@ def test_order_margin_mode_is_limited_to_documented_values() -> None:
         )
 
 
+def test_take_profit_and_stop_loss_prices_must_be_positive() -> None:
+    base = {
+        "symbol": "BTC-USD",
+        "side": OrderSide.BUY,
+        "order_type": OrderType.MARKET,
+        "qty": Decimal("0.1"),
+        "time_in_force": TimeInForce.IOC,
+        "reduce_only": False,
+    }
+
+    with pytest.raises(ValueError, match="tp_price"):
+        CreateOrderRequest(**base, tp_price=Decimal(0))
+    with pytest.raises(ValueError, match="sl_price"):
+        CreateOrderRequest(**base, sl_price=Decimal(-1))
+
+
 def test_instrument_rules_keep_documented_decimal_constraints() -> None:
     rules = InstrumentRules(
         symbol="BTC-USD",

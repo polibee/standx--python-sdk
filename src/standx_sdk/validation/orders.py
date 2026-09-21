@@ -30,6 +30,11 @@ def validate_order(
         raise OrderValidationError(
             "price", request.price, f"at most {rules.price_tick_decimals} decimals"
         )
+    for field, value in (("tp_price", request.tp_price), ("sl_price", request.sl_price)):
+        if value is not None and _decimal_places(value) > rules.price_tick_decimals:
+            raise OrderValidationError(
+                field, value, f"at most {rules.price_tick_decimals} decimals"
+            )
     if request.leverage is not None and request.leverage > rules.max_leverage:
         raise OrderValidationError("leverage", request.leverage, f"leverage <= {rules.max_leverage}")
     if (

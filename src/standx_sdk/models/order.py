@@ -60,6 +60,10 @@ class CreateOrderRequest:
             raise ValueError("market order must not include price")
         if self.price is not None and self.price <= 0:
             raise ValueError("price must be positive")
+        if self.tp_price is not None and self.tp_price <= 0:
+            raise ValueError("tp_price must be positive")
+        if self.sl_price is not None and self.sl_price <= 0:
+            raise ValueError("sl_price must be positive")
         if self.leverage is not None and self.leverage <= 0:
             raise ValueError("leverage must be positive")
         if self.margin_mode is not None:

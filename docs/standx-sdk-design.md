@@ -308,7 +308,7 @@ class InstrumentRules:
 
 `OrdersApi.create()`接受可选的 `InstrumentRules`、`position_qty`和`pending_reduce_only_qty`，调用 `validation.validate_order()`执行上述本地校验。未提供规则时 SDK 不猜测市场限制；提供规则后不合规输入在请求发送前抛出 `OrderValidationError`，不会静默四舍五入或修改订单。
 
-默认行为是拒绝不符合数量或价格精度的输入，而不是静默四舍五入。数量使用 `qty_tick_decimals`，价格使用 `price_tick_decimals`。`OrdersApi.create()`可接收 `position_leverage` 和 `position_margin_mode` 对当前配置做匹配校验；不传这些当前状态时，SDK 不会自行修改账户配置。若未来提供显式的量化辅助方法，也必须返回新的订单值并由调用方明确选择，不得在 `orders.create()`内部隐式修改用户订单。
+默认行为是拒绝不符合数量或价格精度的输入，而不是静默四舍五入。数量使用 `qty_tick_decimals`，价格使用 `price_tick_decimals`。`OrdersApi.create()`可接收 `position_leverage` 和 `position_margin_mode` 对当前配置做匹配校验；不传这些当前状态时，SDK 不会自行修改账户配置。`tp_price`和`sl_price`必须为正数，并按 `price_tick_decimals` 校验精度；SDK 不推断止盈止损方向关系。若未来提供显式的量化辅助方法，也必须返回新的订单值并由调用方明确选择，不得在 `orders.create()`内部隐式修改用户订单。
 
 ```python
 class OrderValidationError(StandXError):

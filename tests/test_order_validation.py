@@ -80,6 +80,19 @@ def test_validate_order_requires_leverage_and_margin_mode_to_match_position() ->
         )
 
 
+def test_validate_order_enforces_take_profit_and_stop_loss_precision() -> None:
+    with pytest.raises(OrderValidationError, match="tp_price"):
+        validate_order(
+            request(tp_price=Decimal("50000.123")),
+            rules(),
+        )
+    with pytest.raises(OrderValidationError, match="sl_price"):
+        validate_order(
+            request(sl_price=Decimal("49999.123")),
+            rules(),
+        )
+
+
 def test_validate_order_accepts_values_aligned_with_symbol_rules() -> None:
     validate_order(
         request(qty=Decimal("0.1234"), price=Decimal("50000.01")),
