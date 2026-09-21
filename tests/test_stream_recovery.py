@@ -220,6 +220,82 @@ def test_order_state_reconciler_uses_rest_snapshot_for_user_order_event() -> Non
     assert calls == ["client-1"]
 
 
+def test_order_state_reconciler_serializes_same_order_refreshes() -> None:
+    active = 0
+    max_active = 0
+
+    async def query(cl_ord_id: str) -> Order:
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0)
+        active -= 1
+        return Order(
+            id=7,
+            cl_ord_id=cl_ord_id,
+            symbol="BTC-USD",
+            side="buy",
+            order_type="limit",
+            qty=Decimal(1),
+            fill_qty=Decimal(0),
+            fill_avg_price=Decimal(0),
+            status="open",
+            time_in_force="gtc",
+            reduce_only=False,
+        )
+
+    reconciler = OrderStateReconciler(query)
+    event = UserOrderEvent(id=7, status="open", qty=Decimal(1), cl_ord_id="client-1")
+
+    async def scenario() -> None:
+        await asyncio.gather(
+            reconciler.apply_user_event(event),
+            reconciler.apply_user_event(event),
+        )
+
+    asyncio.run(scenario())
+
+    assert max_active == 1
+
+
+def test_order_state_reconciler_keeps_different_order_refreshes_independent() -> None:
+    active = 0
+    max_active = 0
+
+    async def query(cl_ord_id: str) -> Order:
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0)
+        active -= 1
+        return Order(
+            id=1 if cl_ord_id == "client-1" else 2,
+            cl_ord_id=cl_ord_id,
+            symbol="BTC-USD",
+            side="buy",
+            order_type="limit",
+            qty=Decimal(1),
+            fill_qty=Decimal(0),
+            fill_avg_price=Decimal(0),
+            status="open",
+            time_in_force="gtc",
+            reduce_only=False,
+        )
+
+    reconciler = OrderStateReconciler(query)
+    events = [
+        UserOrderEvent(id=1, status="open", qty=Decimal(1), cl_ord_id="client-1"),
+        UserOrderEvent(id=2, status="open", qty=Decimal(1), cl_ord_id="client-2"),
+    ]
+
+    async def scenario() -> None:
+        await asyncio.gather(*(reconciler.apply_user_event(event) for event in events))
+
+    asyncio.run(scenario())
+
+    assert max_active == 2
+
+
 def test_order_state_reconciler_keeps_unknown_user_event_out_of_cache() -> None:
     async def query(_: str) -> Order | None:
         return None

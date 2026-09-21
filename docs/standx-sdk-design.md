@@ -554,6 +554,8 @@ Order Response Stream 会保留 pending 请求的 `method` 与参数。断线恢
 
 `OrderStateReconciler`统一处理三类恢复：Order Response Stream 断线后的 pending 请求恢复、Market Stream `order`用户事件后的 REST 重读，以及进程重启后的 `query_open_orders()`缓存重建。用户事件只包含部分字段，不能直接覆盖完整订单；协调器始终按 `cl_ord_id`查询 REST，并把完整的 `Order`快照写入本地缓存。REST 查询不到结果时不写入缓存，也不把订单标记为成功、成交或撤单，pending 请求继续保留，等待后续恢复。重建时没有 `cl_ord_id`的服务端订单会返回给调用方但不会进入可关联缓存。
 
+同一 `cl_ord_id` 的并发用户事件必须串行执行 REST 重读，避免较早发起但较晚返回的查询覆盖后续刷新；不同 `cl_ord_id` 之间保持独立并发。协调器不根据事件局部字段推导状态，也不会因 REST 返回空结果清理已有完整快照。
+
 手动关闭必须取消重连任务；协议错误必须转换为 `PROTOCOL_ERROR`；恢复订阅失败必须转换为 `WS_RESUBSCRIBE_FAILED`并保留原始诊断上下文。
 
 ## 10. 统一错误模型

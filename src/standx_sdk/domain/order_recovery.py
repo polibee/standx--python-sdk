@@ -1,5 +1,6 @@
 """Consistency helpers for recovering orders across stream and REST sources."""
 
+import asyncio
 from collections.abc import Awaitable, Callable
 
 from ..models.order import Order
@@ -13,6 +14,7 @@ class OrderStateReconciler:
     def __init__(self, query_order: Callable[[str], Awaitable[Order | None]]) -> None:
         self._query_order = query_order
         self._orders: dict[str, Order] = {}
+        self._refresh_locks: dict[str, asyncio.Lock] = {}
 
     def get(self, cl_ord_id: str | None) -> Order | None:
         if cl_ord_id is None:
@@ -24,9 +26,11 @@ class OrderStateReconciler:
 
         if event.cl_ord_id is None:
             return None
-        order = await self._query_order(event.cl_ord_id)
-        if order is not None:
-            self._orders[event.cl_ord_id] = order
+        lock = self._refresh_locks.setdefault(event.cl_ord_id, asyncio.Lock())
+        async with lock:
+            order = await self._query_order(event.cl_ord_id)
+            if order is not None:
+                self._orders[event.cl_ord_id] = order
         return order
 
     async def recover_pending(self, stream: OrderResponseStream) -> list[Order]:

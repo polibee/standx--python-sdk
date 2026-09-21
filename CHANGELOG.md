@@ -25,6 +25,7 @@ All notable changes to this project are documented here.
 - Expanded symbol market DTOs with documented base, quote, and spread fields.
 - Added injectable authentication headers to Order Response Stream requests.
 - Validated Order Response authentication header correlation and non-empty values.
+- Serialized concurrent REST refreshes for the same client order ID while keeping different orders independent.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
