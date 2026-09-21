@@ -27,6 +27,7 @@ All notable changes to this project are documented here.
 - Validated Order Response authentication header correlation and non-empty values.
 - Serialized concurrent REST refreshes for the same client order ID while keeping different orders independent.
 - Applied the same refresh lock to pending order-response recovery and user order events.
+- Preserved Market Stream authentication streams across reconnects and cleared stale auth state after reconnect failures.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.

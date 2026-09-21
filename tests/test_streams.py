@@ -37,6 +37,18 @@ class AuthFakeTransport(FakeTransport):
         return self.incoming.pop(0)
 
 
+class SequenceAuthFakeTransport(FakeTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.incoming = [
+            '{"channel":"auth","data":{"code":200,"msg":"success"}}',
+            '{"channel":"auth","data":{"code":401,"msg":"expired"}}',
+        ]
+
+    async def receive(self) -> str:
+        return self.incoming.pop(0)
+
+
 def test_market_stream_builds_documented_subscription_envelope() -> None:
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
 
@@ -96,6 +108,49 @@ def test_market_stream_authenticates_before_user_subscription() -> None:
 
     assert transport.sent[0] == '{"auth":{"token":"jwt-token","impersonate":"cv_1"}}'
     assert transport.sent[1] == '{"subscribe":{"channel":"order"}}'
+
+
+def test_market_stream_reconnect_replays_auth_streams() -> None:
+    transport = AuthFakeTransport()
+    transport.incoming.append('{"channel":"auth","data":{"code":200,"msg":"success"}}')
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1", transport=transport)  # type: ignore[arg-type]
+
+    async def scenario() -> None:
+        await stream.connect()
+        await stream.authenticate("jwt-token", streams=["order", "trade"])
+        await stream.reconnect()
+
+    asyncio.run(scenario())
+
+    assert transport.sent == [
+        '{"auth":{"token":"jwt-token","streams":[{"channel":"order"},{"channel":"trade"}]}}',
+        '{"auth":{"token":"jwt-token","streams":[{"channel":"order"},{"channel":"trade"}]}}',
+    ]
+
+
+def test_market_stream_reconnect_auth_failure_clears_authenticated_state() -> None:
+    transport = SequenceAuthFakeTransport()
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1", transport=transport)  # type: ignore[arg-type]
+
+    async def scenario() -> None:
+        await stream.connect()
+        await stream.authenticate("jwt-token")
+        with pytest.raises(RuntimeError, match="authentication failed"):
+            await stream.reconnect()
+
+    asyncio.run(scenario())
+
+    assert stream.authenticated is False
+
+
+def test_market_stream_rejects_unsupported_auth_stream() -> None:
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1", transport=FakeTransport())  # type: ignore[arg-type]
+
+    async def scenario() -> None:
+        with pytest.raises(ValueError, match="unsupported authenticated stream"):
+            await stream.authenticate("jwt-token", streams=["price"])
+
+    asyncio.run(scenario())
 
 
 def test_market_stream_rejects_user_subscription_before_authentication() -> None:

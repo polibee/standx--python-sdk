@@ -28,6 +28,7 @@ class MarketStream(StreamBase):
         self._authenticated = False
         self._auth_token: str | None = None
         self._impersonate: str | None = None
+        self._auth_streams: list[str] | None = None
 
     @property
     def authenticated(self) -> bool:
@@ -111,6 +112,10 @@ class MarketStream(StreamBase):
     ) -> None:
         if not token:
             raise ValueError("token must not be empty")
+        if streams is not None:
+            unsupported = set(streams) - _USER_CHANNELS
+            if unsupported:
+                raise ValueError(f"unsupported authenticated stream: {min(unsupported)}")
         auth: dict[str, Any] = {"token": token}
         if impersonate is not None:
             auth["impersonate"] = impersonate
@@ -128,14 +133,20 @@ class MarketStream(StreamBase):
         self._authenticated = True
         self._auth_token = token
         self._impersonate = impersonate
+        self._auth_streams = None if streams is None else list(streams)
 
     async def reconnect(self) -> None:
         if self.closed:
             raise RuntimeError("closed stream cannot reconnect")
+        self._authenticated = False
         await self.transport.close()
         await self.connect()
         if self._auth_token is not None:
-            await self.authenticate(self._auth_token, impersonate=self._impersonate)
+            await self.authenticate(
+                self._auth_token,
+                impersonate=self._impersonate,
+                streams=self._auth_streams,
+            )
         for channel, symbol in self._subscriptions:
             try:
                 await self.subscribe(channel, symbol)
@@ -311,3 +322,6 @@ def _optional_int(value: Any) -> int | None:
 
 def _levels(value: Any) -> tuple[tuple[Any, Any], ...]:
     return tuple((_decimal(level[0]), _decimal(level[1])) for level in value)
+
+
+_USER_CHANNELS = {"order", "position", "balance", "trade"}
