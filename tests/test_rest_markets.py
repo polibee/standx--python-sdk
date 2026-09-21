@@ -47,6 +47,9 @@ def test_query_symbol_info_maps_documented_rules() -> None:
 
     assert rules.min_order_qty == Decimal("0.0001")
     assert rules.depth_ticks == (Decimal("0.01"), Decimal("0.1"), Decimal(1))
+    assert rules.enabled is True
+    assert rules.created_at == "2025-07-10T05:15:32Z"
+    assert rules.updated_at == "2025-07-10T05:15:32Z"
 
 
 def test_market_api_maps_documented_market_and_depth_dtos() -> None:

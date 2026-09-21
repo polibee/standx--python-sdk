@@ -23,6 +23,7 @@ All notable changes to this project are documented here.
 - Expanded `PositionSnapshot` with documented margin, liquidation, mark-price, and position-value fields.
 - Expanded `Order` snapshots with documented lock, margin, position, source, block, and timestamp fields.
 - Expanded symbol market DTOs with documented base, quote, and spread fields.
+- Expanded `InstrumentRules` with documented enabled and lifecycle timestamp metadata.
 
 ### Safety
 

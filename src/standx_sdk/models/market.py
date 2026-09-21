@@ -24,6 +24,9 @@ class InstrumentRules:
     maker_fee: Decimal
     taker_fee: Decimal
     depth_ticks: tuple[Decimal, ...]
+    enabled: bool | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

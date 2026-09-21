@@ -41,6 +41,9 @@ class MarketsApi:
             maker_fee=Decimal(str(value["maker_fee"])),
             taker_fee=Decimal(str(value["taker_fee"])),
             depth_ticks=tuple(Decimal(item) for item in str(value["depth_ticks"]).split(",")),
+            enabled=value.get("enabled") if isinstance(value.get("enabled"), bool) else None,
+            created_at=value.get("created_at") if isinstance(value.get("created_at"), str) else None,
+            updated_at=value.get("updated_at") if isinstance(value.get("updated_at"), str) else None,
         )
 
     async def overview(self) -> MarketOverview:
