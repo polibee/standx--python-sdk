@@ -11,6 +11,7 @@ from standx_sdk.errors import ErrorCode, StandXError
 from standx_sdk.models.account import BalanceSnapshot, PositionSnapshot
 from standx_sdk.models.order import Order
 from standx_sdk.models.trade import FundingPayment, UserTrade
+from standx_sdk.resilience.rate_limit import CreditRateLimiter
 from standx_sdk.transport.http import HttpTransport
 
 
@@ -297,3 +298,23 @@ def test_http_transport_maps_network_timeout_and_uses_configured_timeout() -> No
     assert transport.timeout_seconds == 2.5
     assert caught.value.code is ErrorCode.REQUEST_TIMEOUT
     assert caught.value.retryable is True
+
+
+def test_http_transport_acquires_credit_before_each_request() -> None:
+    now = [0.0]
+    limiter = CreditRateLimiter(clock=lambda: now[0], sleep=asyncio.sleep)
+    requests = 0
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        return httpx.Response(200, json={"ok": True})
+
+    transport = HttpTransport(
+        "https://perps.standx.com", httpx.MockTransport(handler), rate_limiter=limiter
+    )
+    asyncio.run(transport.get("/one"))
+    asyncio.run(transport.get("/two"))
+
+    assert requests == 2
+    assert limiter.available_credits == 810

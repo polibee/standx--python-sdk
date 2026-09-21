@@ -48,6 +48,8 @@ await client.close_async()
 
 `ClientConfig.timeout_seconds`会应用到 REST HTTP client。网络超时和服务端限流会转换为带稳定错误码的 `StandXError`，调用方可以根据 `retryable` 和 `retry_after_seconds`决定是否重试。
 
+REST transport 默认启用 StandX credit token-bucket 限流：每次请求 45 credits、900 credits burst、每秒补充 1,000 credits。创建订单和撤单不会因为 429 被 SDK 自动重试。
+
 `new_order` and `cancel_order` responses indicate submission/acceptance, not
 final matching. Use `client.streams.order_response()` with a shared
 `session_id` to correlate asynchronous order responses.

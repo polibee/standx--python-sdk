@@ -9,6 +9,7 @@ from typing import Any, Protocol
 import httpx
 
 from ..errors import ErrorCode, StandXError
+from ..resilience.rate_limit import CreditRateLimiter
 
 
 class RequestSigner(Protocol):
@@ -28,6 +29,7 @@ class HttpTransport:
         impersonate: str | None = None,
         session_id: str | None = None,
         request_signer: RequestSigner | None = None,
+        rate_limiter: CreditRateLimiter | None = None,
     ) -> None:
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
@@ -42,6 +44,7 @@ class HttpTransport:
         if session_id:
             self._headers["x-session-id"] = session_id
         self._request_signer = request_signer
+        self._rate_limiter = rate_limiter or CreditRateLimiter()
 
     @property
     def token(self) -> str | None:
@@ -55,6 +58,7 @@ class HttpTransport:
             self._headers["Authorization"] = f"Bearer {token}"
 
     async def get(self, path: str, *, params: Mapping[str, Any] | None = None) -> Any:
+        await self._rate_limiter.acquire()
         try:
             response = await self._client.get(path, params=params, headers=self._headers)
         except httpx.TimeoutException as exc:
@@ -72,6 +76,7 @@ class HttpTransport:
         signed: bool = False,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._rate_limiter.acquire()
         headers = dict(self._headers)
         if signed:
             if self._request_signer is None:
