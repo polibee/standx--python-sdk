@@ -6,6 +6,7 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from ..errors import ErrorCode, StandXError
 from ..models.order import Order
 from ..models.stream import OrderResponseEvent
 from ..transport.websocket import WebSocketTransport
@@ -51,7 +52,10 @@ class OrderResponseStream(StreamBase):
     def decode_response(self, response: dict[str, Any]) -> OrderResponseEvent:
         request_id = response.get("request_id")
         if not isinstance(request_id, str):
-            raise TypeError("Order Response is missing request_id")
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "Order Response is missing request_id",
+            )
         code = int(response.get("code", 0))
         status = response.get("status")
         if status == "accepted":

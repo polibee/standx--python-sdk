@@ -6,6 +6,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from ..errors import ErrorCode, StandXError
 from ..models.stream import (
     BalanceEvent,
     DepthBookEvent,
@@ -125,7 +126,15 @@ class MarketStream(StreamBase):
         if self._auth_token is not None:
             await self.authenticate(self._auth_token, impersonate=self._impersonate)
         for channel, symbol in self._subscriptions:
-            await self.subscribe(channel, symbol)
+            try:
+                await self.subscribe(channel, symbol)
+            except Exception as exc:
+                target = channel if symbol is None else f"{channel}:{symbol}"
+                raise StandXError(
+                    ErrorCode.WS_RESUBSCRIBE_FAILED,
+                    f"failed to restore subscription {target}",
+                    retryable=True,
+                ) from exc
 
     async def receive(self) -> Any:
         return json.loads(await self.transport.receive())
@@ -134,7 +143,10 @@ class MarketStream(StreamBase):
         channel = message.get("channel")
         data = message.get("data")
         if not isinstance(channel, str) or not isinstance(data, dict):
-            raise TypeError("invalid StandX Market Stream message")
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "invalid StandX Market Stream message",
+            )
         if channel == "order":
             return UserOrderEvent(
                 id=int(data["id"]),

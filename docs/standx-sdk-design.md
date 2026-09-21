@@ -521,7 +521,7 @@ SDK 将 Market Stream 的 `data` 映射为 `models.stream` 中的不可变 DTO�
 
 Market Stream 的用户 channel 必须先调用 `authenticate(token, impersonate=...)`。SDK 发送文档定义的 `{ "auth": { "token": ..., "impersonate": ... } }` 消息，并且只有收到 `channel=auth` 且 `data.code=200` 后才允许订阅 `order`、`position`、`balance`或`trade`。重连时会先重新认证，再按原顺序恢复用户订阅；认证失败不会伪造已认证状态。
 
-Depth book 的 asks/bids 顺序不保证，SDK 不能默认假定已排序。连接层还必须处理服务端 Ping/Pong、5 分钟未收到 Pong 的断开，以及单连接最长 24 小时的生命周期。
+Depth book 的 asks/bids 顺序不保证，SDK 不能默认假定已排序。`WebSocketTransport` 默认启用客户端 Ping/Pong（`ping_interval=20s`、`ping_timeout=60s`），由底层 websockets 连接负责无响应检测；调用方可以显式传入 `None`关闭某项或调整参数。连接层还必须处理服务端 Ping/Pong、5 分钟未收到 Pong 的断开，以及单连接最长 24 小时的生命周期。
 
 Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`method`、`header`、JSON 字符串形式的 `params`。HTTP `new_order`和 `cancel_order`的 `x-session-id`必须与 WebSocket 的 `session_id`一致。响应需要区分 `accepted`、成功和拒绝；`accepted`只表示网关接受处理，不表示已经成交或撤单完成。
 
@@ -530,6 +530,8 @@ Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`me
 订单响应流必须使用 `session_id + request_id`做关联，不能只使用单一 request ID。断线期间未确认的请求不能自动判定为成功或失败，应进入本地未知状态并由 REST 查询恢复。
 
 SDK 的 stream 对象必须记录已成功订阅的 channel，并在连接重建后按原顺序重放订阅。调用方显式关闭后不得自动重连。Order Response Stream 必须记录 pending `request_id`，收到响应后移除对应 ID；连接断开时仍 pending 的订单请求保持本地未知状态，不能伪造成功或失败。
+
+Market Stream 订阅恢复失败统一抛出 `StandXError(code=WS_RESUBSCRIBE_FAILED)`，异常链保留底层连接错误，且错误消息包含失败的 channel 和 symbol，便于调用方决定是否重新建连。
 
 连接建立支持注入 sleep 函数的指数退避：默认最多 5 次尝试、初始等待 0.5 秒，每次失败后等待时间翻倍；最后一次失败原样抛出。调用方显式关闭后，连接和重连都会拒绝执行。退避策略不对订单结果做乐观判断，也不会把连接失败转换为订单失败。
 

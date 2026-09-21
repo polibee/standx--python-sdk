@@ -1,6 +1,12 @@
+import asyncio
+
+import pytest
+
+from standx_sdk.errors import ErrorCode, StandXError
 from standx_sdk.models.stream import OrderResponseEvent
 from standx_sdk.streams.market import MarketStream
 from standx_sdk.streams.order_response import OrderResponseStream
+from standx_sdk.transport.websocket import WebSocketTransport
 
 
 class FakeTransport:
@@ -108,6 +114,64 @@ def test_market_stream_rejects_user_subscription_before_authentication() -> None
     asyncio.run(scenario())
 
 
+def test_market_stream_wraps_subscription_restore_failure() -> None:
+    class ResubscribeFailureTransport(FakeTransport):
+        def __init__(self) -> None:
+            super().__init__()
+            self.reconnecting = False
+
+        async def connect(self) -> None:
+            self.connect_count += 1
+            self.reconnecting = self.connect_count > 1
+
+        async def send(self, message: str) -> None:
+            if self.reconnecting:
+                raise ConnectionError("subscription socket rejected")
+            await super().send(message)
+
+    transport = ResubscribeFailureTransport()
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1", transport=transport)  # type: ignore[arg-type]
+
+    async def scenario() -> None:
+        await stream.connect()
+        await stream.subscribe("price", "BTC-USD")
+        await stream.reconnect()
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(scenario())
+
+    assert caught.value.code is ErrorCode.WS_RESUBSCRIBE_FAILED
+    assert "price:BTC-USD" in caught.value.message
+    assert isinstance(caught.value.__cause__, ConnectionError)
+
+
+def test_websocket_transport_passes_ping_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_connect(endpoint: str, **kwargs: object) -> object:
+        captured["endpoint"] = endpoint
+        captured.update(kwargs)
+        return object()
+
+    import standx_sdk.transport.websocket as websocket_module
+
+    monkeypatch.setattr(websocket_module.websockets, "connect", fake_connect)
+    transport = WebSocketTransport(
+        "wss://example.test/ws",
+        ping_interval=20.0,
+        ping_timeout=60.0,
+    )
+
+    asyncio.run(transport.connect())
+
+    assert captured == {
+        "endpoint": "wss://example.test/ws",
+        "additional_headers": {},
+        "ping_interval": 20.0,
+        "ping_timeout": 60.0,
+    }
+
+
 def test_order_response_stream_builds_documented_request_envelope() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
 
@@ -146,3 +210,18 @@ def test_order_response_stream_classifies_documented_response_states() -> None:
     assert accepted.state == "accepted"
     assert rejected.state == "rejected"
     assert rejected.message == "alo order rejected"
+
+
+def test_stream_protocol_errors_use_stable_sdk_error_code() -> None:
+    response_stream = OrderResponseStream(
+        "wss://perps.standx.com/ws-api/v1", session_id="session-1"
+    )
+    market_stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
+
+    with pytest.raises(StandXError) as response_error:
+        response_stream.decode_response({"code": 0})
+    with pytest.raises(StandXError) as market_error:
+        market_stream.decode({"channel": "order"})
+
+    assert response_error.value.code is ErrorCode.PROTOCOL_ERROR
+    assert market_error.value.code is ErrorCode.PROTOCOL_ERROR
