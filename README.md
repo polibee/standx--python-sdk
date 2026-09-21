@@ -2,8 +2,8 @@
 
 Typed Python client for the StandX Perps API documented in `docs/standx.md`.
 
-The SDK is under staged development. It defaults to `PAPER` and does not
-perform real trading in its automated tests.
+The SDK defaults to `PAPER` and does not perform real trading in its automated tests.
+See [CHANGELOG.md](CHANGELOG.md) for the current release scope and safety notes.
 
 ## Usage
 
@@ -96,3 +96,6 @@ ruff check .
 mypy src
 python -m build
 ```
+
+The test suite is fully offline. A real `LIVE` configuration requires an explicit
+`Environment.LIVE` choice and separately supplied credentials/signers.
