@@ -88,7 +88,9 @@ class MarketsApi:
             bids=_levels(value.get("bids", [])),
         )
 
-    async def recent_trades(self, symbol: str, *, limit: int | None = None) -> list[dict[str, Any]]:
+    async def _recent_trades_raw(
+        self, symbol: str, *, limit: int | None = None
+    ) -> list[dict[str, Any]]:
         params: dict[str, object] = {"symbol": symbol}
         if limit is not None:
             params["limit"] = limit
@@ -96,10 +98,10 @@ class MarketsApi:
         values = response.get("result", response) if isinstance(response, dict) else response
         return cast(list[dict[str, Any]], values)
 
-    async def recent_trade_snapshots(
+    async def recent_trades(
         self, symbol: str, *, limit: int | None = None
     ) -> list[RecentTrade]:
-        values = await self.recent_trades(symbol, limit=limit)
+        values = await self._recent_trades_raw(symbol, limit=limit)
         return [
             RecentTrade(
                 symbol=str(value["symbol"]),
@@ -111,6 +113,11 @@ class MarketsApi:
             )
             for value in values
         ]
+
+    async def recent_trade_snapshots(
+        self, symbol: str, *, limit: int | None = None
+    ) -> list[RecentTrade]:
+        return await self.recent_trades(symbol, limit=limit)
 
 
 __all__ = ["MarketsApi"]

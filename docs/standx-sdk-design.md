@@ -107,7 +107,7 @@ market_stream = client.streams.market()
 order_stream = client.streams.order_response()
 ```
 
-服务入口只暴露类型化请求和响应，不暴露 REST 原始 JSON。
+服务入口只暴露类型化请求和响应，不暴露 REST 原始 JSON。账户和市场 domain 内部的 `_balance_raw()`、`_positions_raw()`、`_trades_raw()`、`_funding_rates_raw()`和`_recent_trades_raw()`仅用于 DTO 映射，不属于公共调用入口。
 
 ## 6. 模块结构
 

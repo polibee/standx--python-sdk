@@ -25,34 +25,25 @@ class AccountApi:
     def __init__(self, transport: HttpTransport) -> None:
         self._transport = transport
 
-    async def balance(self) -> dict[str, Any]:
+    async def _balance_raw(self) -> dict[str, Any]:
         return cast(dict[str, Any], _decimalize(await self._transport.get("/api/query_balance")))
 
-    async def positions(self, symbol: str | None = None) -> list[dict[str, Any]]:
+    async def balance(self) -> BalanceSnapshot:
+        value = await self._balance_raw()
+        return _balance_from(value)
+
+    async def balance_snapshot(self) -> BalanceSnapshot:
+        return await self.balance()
+
+    async def _positions_raw(self, symbol: str | None = None) -> list[dict[str, Any]]:
         params = {"symbol": symbol} if symbol else None
         response = _decimalize(await self._transport.get("/api/query_positions", params=params))
         if isinstance(response, dict):
             return cast(list[dict[str, Any]], response.get("result", []))
         return cast(list[dict[str, Any]], response)
 
-    async def balance_snapshot(self) -> BalanceSnapshot:
-        value = await self.balance()
-        return BalanceSnapshot(
-            balance=_required_decimal(value, "balance"),
-            equity=_required_decimal(value, "equity"),
-            upnl=_required_decimal(value, "upnl"),
-            isolated_balance=_optional_decimal(value.get("isolated_balance")),
-            isolated_upnl=_optional_decimal(value.get("isolated_upnl")),
-            cross_balance=_optional_decimal(value.get("cross_balance")),
-            cross_margin=_optional_decimal(value.get("cross_margin")),
-            cross_upnl=_optional_decimal(value.get("cross_upnl")),
-            locked=_optional_decimal(value.get("locked")),
-            cross_available=_optional_decimal(value.get("cross_available")),
-            pnl_freeze=_optional_decimal(value.get("pnl_freeze")),
-        )
-
-    async def position_snapshots(self, symbol: str | None = None) -> list[PositionSnapshot]:
-        values = await self.positions(symbol)
+    async def positions(self, symbol: str | None = None) -> list[PositionSnapshot]:
+        values = await self._positions_raw(symbol)
         return [
             PositionSnapshot(
                 id=int(value["id"]),
@@ -81,30 +72,39 @@ class AccountApi:
             for value in values
         ]
 
-    async def position_config(self, symbol: str) -> dict[str, Any]:
+    async def position_snapshots(self, symbol: str | None = None) -> list[PositionSnapshot]:
+        return await self.positions(symbol)
+
+    async def _position_config_raw(self, symbol: str) -> dict[str, Any]:
         return cast(dict[str, Any], _decimalize(
             await self._transport.get("/api/query_position_config", params={"symbol": symbol})
         ))
 
-    async def position_config_snapshot(self, symbol: str) -> PositionConfig:
-        value = await self.position_config(symbol)
+    async def position_config(self, symbol: str) -> PositionConfig:
+        value = await self._position_config_raw(symbol)
         return PositionConfig(
             symbol=str(value["symbol"]),
             leverage=int(value["leverage"]),
             margin_mode=MarginMode(str(value["margin_mode"])),
         )
 
-    async def change_leverage(self, symbol: str, leverage: int) -> dict[str, Any]:
+    async def position_config_snapshot(self, symbol: str) -> PositionConfig:
+        return await self.position_config(symbol)
+
+    async def _change_leverage_raw(self, symbol: str, leverage: int) -> dict[str, Any]:
         if leverage <= 0:
             raise ValueError("leverage must be positive")
         return cast(dict[str, Any], await self._transport.post(
             "/api/change_leverage", json={"symbol": symbol, "leverage": leverage}, signed=True
         ))
 
-    async def change_leverage_config(self, symbol: str, leverage: int) -> ConfigChangeResult:
-        return _config_change(await self.change_leverage(symbol, leverage))
+    async def change_leverage(self, symbol: str, leverage: int) -> ConfigChangeResult:
+        return _config_change(await self._change_leverage_raw(symbol, leverage))
 
-    async def change_margin_mode(self, symbol: str, margin_mode: str) -> dict[str, Any]:
+    async def change_leverage_config(self, symbol: str, leverage: int) -> ConfigChangeResult:
+        return await self.change_leverage(symbol, leverage)
+
+    async def _change_margin_mode_raw(self, symbol: str, margin_mode: str) -> dict[str, Any]:
         if margin_mode not in {"cross", "isolated"}:
             raise ValueError("margin_mode must be cross or isolated")
         return cast(dict[str, Any], await self._transport.post(
@@ -113,12 +113,17 @@ class AccountApi:
             signed=True,
         ))
 
+    async def change_margin_mode(
+        self, symbol: str, margin_mode: MarginMode
+    ) -> ConfigChangeResult:
+        return _config_change(await self._change_margin_mode_raw(symbol, margin_mode.value))
+
     async def change_margin_mode_config(
         self, symbol: str, margin_mode: MarginMode
     ) -> ConfigChangeResult:
-        return _config_change(await self.change_margin_mode(symbol, margin_mode.value))
+        return await self.change_margin_mode(symbol, margin_mode)
 
-    async def trades(
+    async def _trades_raw(
         self,
         symbol: str | None = None,
         *,
@@ -136,6 +141,21 @@ class AccountApi:
             return cast(list[dict[str, Any]], response.get("result", []))
         return cast(list[dict[str, Any]], response)
 
+    async def trades(
+        self,
+        symbol: str | None = None,
+        *,
+        last_id: int | None = None,
+        side: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int | None = None,
+    ) -> list[UserTrade]:
+        values = await self._trades_raw(
+            symbol, last_id=last_id, side=side, start=start, end=end, limit=limit
+        )
+        return [_trade_from(value) for value in values]
+
     async def trade_snapshots(
         self,
         symbol: str | None = None,
@@ -146,10 +166,9 @@ class AccountApi:
         end: str | None = None,
         limit: int | None = None,
     ) -> list[UserTrade]:
-        values = await self.trades(
+        return await self.trades(
             symbol, last_id=last_id, side=side, start=start, end=end, limit=limit
         )
-        return [_trade_from(value) for value in values]
 
     async def funding_history(
         self,
@@ -169,7 +188,7 @@ class AccountApi:
         values = response.get("result", response) if isinstance(response, dict) else response
         return [_funding_from(value) for value in values]
 
-    async def funding_rates(
+    async def _funding_rates_raw(
         self, symbol: str, start_time: int, end_time: int
     ) -> list[dict[str, Any]]:
         return cast(list[dict[str, Any]], _decimalize(
@@ -179,11 +198,16 @@ class AccountApi:
             )
         ))
 
+    async def funding_rates(
+        self, symbol: str, start_time: int, end_time: int
+    ) -> list[FundingRate]:
+        values = await self._funding_rates_raw(symbol, start_time, end_time)
+        return [_funding_rate_from(value) for value in values]
+
     async def funding_rate_snapshots(
         self, symbol: str, start_time: int, end_time: int
     ) -> list[FundingRate]:
-        values = await self.funding_rates(symbol, start_time, end_time)
-        return [_funding_rate_from(value) for value in values]
+        return await self.funding_rates(symbol, start_time, end_time)
 
 
 __all__ = ["AccountApi"]
@@ -193,6 +217,22 @@ def _required_decimal(value: dict[str, Any], key: str) -> Decimal:
     if key not in value:
         raise ValueError(f"StandX response missing {key}")
     return Decimal(str(value[key]))
+
+
+def _balance_from(value: dict[str, Any]) -> BalanceSnapshot:
+    return BalanceSnapshot(
+        balance=_required_decimal(value, "balance"),
+        equity=_required_decimal(value, "equity"),
+        upnl=_required_decimal(value, "upnl"),
+        isolated_balance=_optional_decimal(value.get("isolated_balance")),
+        isolated_upnl=_optional_decimal(value.get("isolated_upnl")),
+        cross_balance=_optional_decimal(value.get("cross_balance")),
+        cross_margin=_optional_decimal(value.get("cross_margin")),
+        cross_upnl=_optional_decimal(value.get("cross_upnl")),
+        locked=_optional_decimal(value.get("locked")),
+        cross_available=_optional_decimal(value.get("cross_available")),
+        pnl_freeze=_optional_decimal(value.get("pnl_freeze")),
+    )
 
 
 def _history_params(**values: object) -> dict[str, object] | None:

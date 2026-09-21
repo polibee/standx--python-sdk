@@ -108,19 +108,19 @@ def test_account_api_maps_balance_and_position_endpoints() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         paths.append(request.url.path)
         if request.url.path == "/api/query_balance":
-            return httpx.Response(200, json={"balance": "10.5", "equity": "11.0"})
+            return httpx.Response(200, json={"balance": "10.5", "equity": "11.0", "upnl": "0.5"})
         if request.url.path == "/api/query_positions":
             return httpx.Response(200, json=[])
         return httpx.Response(200, json=[])
 
     api = AccountApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
 
-    async def collect() -> tuple[dict[str, object], list[dict[str, object]]]:
+    async def collect() -> tuple[BalanceSnapshot, list[PositionSnapshot]]:
         return await asyncio.gather(api.balance(), api.positions())
 
     balance, positions = asyncio.run(collect())
 
-    assert balance["balance"] == Decimal("10.5")
+    assert balance.balance == Decimal("10.5")
     assert positions == []
     assert paths == ["/api/query_balance", "/api/query_positions"]
 
