@@ -24,6 +24,13 @@ class MarketStream(StreamBase):
         super().__init__(endpoint)
         self.transport = transport or WebSocketTransport(endpoint)
         self._subscriptions: list[tuple[str, str | None]] = []
+        self._authenticated = False
+        self._auth_token: str | None = None
+        self._impersonate: str | None = None
+
+    @property
+    def authenticated(self) -> bool:
+        return self._authenticated
 
     def subscription(self, channel: str, symbol: str | None = None) -> dict[str, Any]:
         if channel in {"price", "depth_book", "public_trade"} and not symbol:
@@ -74,6 +81,8 @@ class MarketStream(StreamBase):
                 delay *= 2
 
     async def subscribe(self, channel: str, symbol: str | None = None) -> None:
+        if channel in {"order", "position", "balance", "trade"} and not self.authenticated:
+            raise RuntimeError("authenticate before subscribing to user channels")
         subscription = (channel, symbol)
         if subscription not in self._subscriptions:
             self._subscriptions.append(subscription)
@@ -81,11 +90,40 @@ class MarketStream(StreamBase):
             json.dumps(self.subscription(channel, symbol), separators=(",", ":"))
         )
 
+    async def authenticate(
+        self,
+        token: str,
+        *,
+        impersonate: str | None = None,
+        streams: list[str] | None = None,
+    ) -> None:
+        if not token:
+            raise ValueError("token must not be empty")
+        auth: dict[str, Any] = {"token": token}
+        if impersonate is not None:
+            auth["impersonate"] = impersonate
+        if streams is not None:
+            auth["streams"] = [{"channel": channel} for channel in streams]
+        await self.transport.send(json.dumps({"auth": auth}, separators=(",", ":")))
+        response = json.loads(await self.transport.receive())
+        if (
+            not isinstance(response, dict)
+            or response.get("channel") != "auth"
+            or not isinstance(response.get("data"), dict)
+            or response["data"].get("code") != 200
+        ):
+            raise RuntimeError("Market Stream authentication failed")
+        self._authenticated = True
+        self._auth_token = token
+        self._impersonate = impersonate
+
     async def reconnect(self) -> None:
         if self.closed:
             raise RuntimeError("closed stream cannot reconnect")
         await self.transport.close()
         await self.connect()
+        if self._auth_token is not None:
+            await self.authenticate(self._auth_token, impersonate=self._impersonate)
         for channel, symbol in self._subscriptions:
             await self.subscribe(channel, symbol)
 
@@ -174,6 +212,7 @@ class MarketStream(StreamBase):
 
     async def close_async(self) -> None:
         self.close()
+        self._authenticated = False
         await self.transport.close()
 
 

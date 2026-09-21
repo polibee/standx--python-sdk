@@ -21,6 +21,15 @@ class FakeTransport:
         self.close_count += 1
 
 
+class AuthFakeTransport(FakeTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.incoming = ['{"channel":"auth","data":{"code":200,"msg":"success"}}']
+
+    async def receive(self) -> str:
+        return self.incoming.pop(0)
+
+
 def test_market_stream_builds_documented_subscription_envelope() -> None:
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
 
@@ -61,6 +70,39 @@ def test_closed_market_stream_does_not_reconnect() -> None:
             assert "closed" in str(error)
         else:
             raise AssertionError("closed stream must not reconnect")
+
+    asyncio.run(scenario())
+
+
+def test_market_stream_authenticates_before_user_subscription() -> None:
+    transport = AuthFakeTransport()
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1", transport=transport)  # type: ignore[arg-type]
+
+    import asyncio
+
+    async def scenario() -> None:
+        await stream.connect()
+        await stream.authenticate("jwt-token", impersonate="cv_1")
+        await stream.subscribe("order")
+
+    asyncio.run(scenario())
+
+    assert transport.sent[0] == '{"auth":{"token":"jwt-token","impersonate":"cv_1"}}'
+    assert transport.sent[1] == '{"subscribe":{"channel":"order"}}'
+
+
+def test_market_stream_rejects_user_subscription_before_authentication() -> None:
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1", transport=FakeTransport())  # type: ignore[arg-type]
+
+    import asyncio
+
+    async def scenario() -> None:
+        try:
+            await stream.subscribe("balance")
+        except RuntimeError as error:
+            assert "authenticate" in str(error)
+        else:
+            raise AssertionError("user subscriptions require authentication")
 
     asyncio.run(scenario())
 

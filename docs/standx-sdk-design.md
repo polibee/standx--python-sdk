@@ -501,6 +501,8 @@ SDK 将 Market Stream 的 `data` 映射为 `models.stream` 中的不可变 DTO�
 
 用户事件不会被拆成第三条 WebSocket 连接，仍由 Market Stream 统一承载。DTO 映射只做类型转换，不推导 maker/taker、部分成交状态或其他 StandX 未定义字段。
 
+Market Stream 的用户 channel 必须先调用 `authenticate(token, impersonate=...)`。SDK 发送文档定义的 `{ "auth": { "token": ..., "impersonate": ... } }` 消息，并且只有收到 `channel=auth` 且 `data.code=200` 后才允许订阅 `order`、`position`、`balance`或`trade`。重连时会先重新认证，再按原顺序恢复用户订阅；认证失败不会伪造已认证状态。
+
 Depth book 的 asks/bids 顺序不保证，SDK 不能默认假定已排序。连接层还必须处理服务端 Ping/Pong、5 分钟未收到 Pong 的断开，以及单连接最长 24 小时的生命周期。
 
 Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`method`、`header`、JSON 字符串形式的 `params`。HTTP `new_order`和 `cancel_order`的 `x-session-id`必须与 WebSocket 的 `session_id`一致。响应需要区分 `accepted`、成功和拒绝；`accepted`只表示网关接受处理，不表示已经成交或撤单完成。
