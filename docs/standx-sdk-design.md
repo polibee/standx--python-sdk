@@ -537,6 +537,8 @@ SDK 的 stream 对象必须记录已成功订阅的 channel，并在连接重建
 
 Order Response Stream 会保留 pending 请求的 `method` 与参数。断线恢复时，调用方传入按 `cl_ord_id` 查询 REST 状态的异步函数，SDK 逐个查询拥有客户端订单 ID 的未确认请求，返回查询结果并清理已恢复的 request ID。没有 `cl_ord_id` 的请求不会被猜测成功或失败，继续保持 pending/未知状态。
 
+`OrderStateReconciler`统一处理两类恢复：Order Response Stream 断线后的 pending 请求恢复，以及 Market Stream `order`用户事件后的 REST 重读。用户事件只包含部分字段，不能直接覆盖完整订单；协调器始终按 `cl_ord_id`查询 REST，并把完整的 `Order`快照写入本地缓存。REST 查询不到结果时不写入缓存，也不把订单标记为成功、成交或撤单，pending 请求继续保留，等待后续恢复。
+
 手动关闭必须取消重连任务；协议错误必须转换为 `PROTOCOL_ERROR`；恢复订阅失败必须转换为 `WS_RESUBSCRIBE_FAILED`并保留原始诊断上下文。
 
 ## 10. 统一错误模型

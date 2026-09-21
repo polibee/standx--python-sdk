@@ -31,6 +31,17 @@ order = CreateOrderRequest(
 submission = await client.orders.create(order)
 current = await client.orders.query_order(cl_ord_id="client-example-1")
 
+# User order events are notifications; re-read REST for a complete snapshot.
+from standx_sdk.domain import OrderStateReconciler
+
+reconciler = OrderStateReconciler(
+    lambda cl_ord_id: client.orders.query_order(cl_ord_id=cl_ord_id)
+)
+event = client.streams.market().decode({"channel": "order", "data": {
+    "id": 1, "status": "filled", "qty": "0.1", "cl_ord_id": "client-example-1"
+}})
+order = await reconciler.apply_user_event(event)
+
 balance = await client.account.balance_snapshot()
 positions = await client.account.position_snapshots(symbol="BTC-USD")
 

@@ -1,0 +1,44 @@
+"""Consistency helpers for recovering orders across stream and REST sources."""
+
+from collections.abc import Awaitable, Callable
+
+from ..models.order import Order
+from ..models.stream import UserOrderEvent
+from ..streams.order_response import OrderResponseStream
+
+
+class OrderStateReconciler:
+    """Keep REST order snapshots as the authority after stream notifications."""
+
+    def __init__(self, query_order: Callable[[str], Awaitable[Order | None]]) -> None:
+        self._query_order = query_order
+        self._orders: dict[str, Order] = {}
+
+    def get(self, cl_ord_id: str | None) -> Order | None:
+        if cl_ord_id is None:
+            return None
+        return self._orders.get(cl_ord_id)
+
+    async def apply_user_event(self, event: UserOrderEvent) -> Order | None:
+        """Re-read REST after a user event instead of merging partial event fields."""
+
+        if event.cl_ord_id is None:
+            return None
+        order = await self._query_order(event.cl_ord_id)
+        if order is not None:
+            self._orders[event.cl_ord_id] = order
+        return order
+
+    async def recover_pending(self, stream: OrderResponseStream) -> list[Order]:
+        """Recover only pending requests whose client ID has a REST snapshot."""
+
+        recovered = await stream.recover_pending(self._query_order)
+        typed: list[Order] = []
+        for value in recovered:
+            if isinstance(value, Order) and value.cl_ord_id is not None:
+                self._orders[value.cl_ord_id] = value
+                typed.append(value)
+        return typed
+
+
+__all__ = ["OrderStateReconciler"]

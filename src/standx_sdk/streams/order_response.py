@@ -4,6 +4,7 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from ..models.order import Order
 from ..models.stream import OrderResponseEvent
 from ..transport.websocket import WebSocketTransport
 from .base import StreamBase
@@ -69,14 +70,16 @@ class OrderResponseStream(StreamBase):
 
     async def recover_pending(
         self,
-        query: Callable[[str], Awaitable[dict[str, Any]]],
-    ) -> list[dict[str, Any]]:
-        recovered: list[dict[str, Any]] = []
+        query: Callable[[str], Awaitable[dict[str, Any] | Order | None]],
+    ) -> list[dict[str, Any] | Order]:
+        recovered: list[dict[str, Any] | Order] = []
         for request_id, request in tuple(self._pending_requests.items()):
             cl_ord_id = request["params"].get("cl_ord_id")
             if not isinstance(cl_ord_id, str):
                 continue
             result = await query(cl_ord_id)
+            if result is None:
+                continue
             recovered.append(result)
             self._pending_request_ids.discard(request_id)
             self._pending_requests.pop(request_id, None)
