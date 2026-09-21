@@ -29,7 +29,14 @@ class OrderResponseStream(StreamBase):
     def pending_request_ids(self) -> set[str]:
         return set(self._pending_request_ids)
 
-    def request(self, method: str, params: dict[str, Any], *, request_id: str) -> dict[str, Any]:
+    def request(
+        self,
+        method: str,
+        params: dict[str, Any],
+        *,
+        request_id: str,
+        header: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         if method not in {"auth:login", "order:new", "order:cancel"}:
             raise ValueError("unsupported StandX Order Response method")
         self._pending_request_ids.add(request_id)
@@ -38,7 +45,7 @@ class OrderResponseStream(StreamBase):
             "session_id": self.session_id,
             "request_id": request_id,
             "method": method,
-            "header": {},
+            "header": dict(header or {}),
             "params": json.dumps(params, separators=(",", ":"), ensure_ascii=False),
         }
 
@@ -145,9 +152,19 @@ class OrderResponseStream(StreamBase):
         await self.transport.close()
         await self.connect()
 
-    async def send_request(self, method: str, params: dict[str, Any], *, request_id: str) -> None:
+    async def send_request(
+        self,
+        method: str,
+        params: dict[str, Any],
+        *,
+        request_id: str,
+        header: dict[str, str] | None = None,
+    ) -> None:
         await self.transport.send(
-            json.dumps(self.request(method, params, request_id=request_id), separators=(",", ":"))
+            json.dumps(
+                self.request(method, params, request_id=request_id, header=header),
+                separators=(",", ":"),
+            )
         )
 
     async def receive(self) -> Any:

@@ -183,6 +183,27 @@ def test_order_response_stream_builds_documented_request_envelope() -> None:
     assert message["params"] == '{"qty":"0.1"}'
 
 
+def test_order_response_stream_accepts_documented_authentication_header() -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+
+    message = stream.request(
+        "order:new",
+        {"qty": "0.1"},
+        request_id="request-1",
+        header={
+            "x-request-id": "request-1",
+            "x-request-timestamp": "1700000000000",
+            "x-request-signature": "signature",
+        },
+    )
+
+    assert message["header"] == {
+        "x-request-id": "request-1",
+        "x-request-timestamp": "1700000000000",
+        "x-request-signature": "signature",
+    }
+
+
 def test_order_response_stream_tracks_request_ids_until_response() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
 

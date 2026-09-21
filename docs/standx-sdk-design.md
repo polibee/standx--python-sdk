@@ -698,6 +698,8 @@ python -m build
 
 在代码和验证完成后初始化 Git，确认远程仓库地址，创建阶段性提交并推送到 GitHub。未确认 remote 前不猜测目标仓库，也不执行推送。
 
+Order Response Stream 的 `request()`和`send_request()`支持调用方注入文档定义的认证 header；请求仍严格保留 `session_id`、`request_id`、`method`、`header`和 JSON 字符串形式的 `params`。
+
 ## 15. 验收标准
 
 项目完成必须同时满足：
