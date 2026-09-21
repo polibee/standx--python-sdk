@@ -246,6 +246,8 @@ RestTransport
 
 `HttpTransport`使用 `ClientConfig.timeout_seconds`创建 `httpx.AsyncClient`。网络超时映射为可重试的 `REQUEST_TIMEOUT`；HTTP 400/401/403/408/429/5xx分别映射为验证、认证、超时、限流或协议错误，并尽可能保留响应中的 `message`、`x-request-id`/`request_id`和 `retry-after`。
 
+创建订单的 HTTP 超时会转换为不可自动重试的 `ORDER_UNKNOWN`，调用方必须先按 `cl_ord_id`查询再决定后续动作；其他 REST 成功响应的非法 JSON 统一转换为不可重试的 `PROTOCOL_ERROR`。
+
 ### 8.2 API 服务职责
 
 各 API 服务负责 endpoint 路径、请求 DTO、响应 DTO 和业务级错误判断。它们不得直接操作底层 HTTP 库的异常类型。

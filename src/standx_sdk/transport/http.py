@@ -66,7 +66,7 @@ class HttpTransport:
                 ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", retryable=True
             ) from exc
         self._raise_for_status(response)
-        return response.json()
+        return self._decode_json(response)
 
     async def post(
         self,
@@ -92,7 +92,18 @@ class HttpTransport:
                 ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", retryable=True
             ) from exc
         self._raise_for_status(response)
-        return response.json()
+        return self._decode_json(response)
+
+    @staticmethod
+    def _decode_json(response: httpx.Response) -> Any:
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                f"HTTP {response.status_code} response is not valid JSON",
+                retryable=False,
+            ) from exc
 
     @staticmethod
     def _raise_for_status(response: httpx.Response) -> None:

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
 
+from ..errors import ErrorCode, StandXError
 from ..models.market import InstrumentRules
 from ..models.order import CreateOrderRequest, Order
 from ..transport.http import HttpTransport
@@ -55,7 +56,19 @@ class OrdersApi:
             "sl_price": _decimal(request.sl_price),
         }
         body.update({key: value for key, value in optional.items() if value is not None})
-        return self._result(await self._transport.post("/api/new_order", json=body, signed=True))
+        try:
+            response = await self._transport.post("/api/new_order", json=body, signed=True)
+        except StandXError as exc:
+            if exc.code is not ErrorCode.REQUEST_TIMEOUT:
+                raise
+            raise StandXError(
+                ErrorCode.ORDER_UNKNOWN,
+                "new order request timed out; query the order by cl_ord_id before retrying",
+                request_id=exc.request_id,
+                retryable=False,
+                server_code=exc.server_code,
+            ) from exc
+        return self._result(response)
 
     async def cancel(
         self, *, order_id: int | None = None, cl_ord_id: str | None = None

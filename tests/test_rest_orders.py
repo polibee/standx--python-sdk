@@ -3,8 +3,10 @@ import json
 from decimal import Decimal
 
 import httpx
+import pytest
 
 from standx_sdk.domain.orders import OrdersApi
+from standx_sdk.errors import ErrorCode, StandXError
 from standx_sdk.models.order import CreateOrderRequest, OrderSide, OrderType, TimeInForce
 from standx_sdk.transport.http import HttpTransport
 
@@ -98,3 +100,36 @@ def test_cancel_uses_documented_payload() -> None:
 
     assert result.request_id == "r2"
     assert seen == {"path": "/api/cancel_order", "body": {"cl_ord_id": "client-1"}}
+
+
+def test_new_order_timeout_maps_to_unknown_order_state() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(handler),
+            request_signer=FakeSigner(),
+        )
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(
+            api.create(
+                CreateOrderRequest(
+                    symbol="BTC-USD",
+                    side=OrderSide.BUY,
+                    order_type=OrderType.LIMIT,
+                    qty=Decimal("0.1"),
+                    price=Decimal(50000),
+                    time_in_force=TimeInForce.GTC,
+                    reduce_only=False,
+                    cl_ord_id="client-timeout",
+                )
+            )
+        )
+
+    assert caught.value.code is ErrorCode.ORDER_UNKNOWN
+    assert caught.value.retryable is False
+    assert "query" in caught.value.message
