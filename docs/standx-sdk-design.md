@@ -556,6 +556,8 @@ Order Response Stream 会保留 pending 请求的 `method` 与参数。断线恢
 
 同一 `cl_ord_id` 的并发用户事件必须串行执行 REST 重读，避免较早发起但较晚返回的查询覆盖后续刷新；不同 `cl_ord_id` 之间保持独立并发。协调器不根据事件局部字段推导状态，也不会因 REST 返回空结果清理已有完整快照。
 
+Order Response Stream 的 pending 恢复也必须复用同一 `cl_ord_id` 锁，并将 REST 查询与完整快照写入作为一个临界区；这样 pending 恢复和用户订单事件重读不会并发覆盖同一订单。
+
 手动关闭必须取消重连任务；协议错误必须转换为 `PROTOCOL_ERROR`；恢复订阅失败必须转换为 `WS_RESUBSCRIBE_FAILED`并保留原始诊断上下文。
 
 ## 10. 统一错误模型

@@ -331,6 +331,57 @@ def test_order_response_recovery_keeps_pending_when_rest_has_no_snapshot() -> No
     assert stream.pending_request_ids == {"request-1"}
 
 
+def test_pending_recovery_shares_order_refresh_lock_with_user_events() -> None:
+    active = 0
+    max_active = 0
+    order = Order(
+        id=9,
+        cl_ord_id="client-1",
+        symbol="BTC-USD",
+        side="buy",
+        order_type="limit",
+        qty=Decimal(1),
+        fill_qty=Decimal(0),
+        fill_avg_price=Decimal(0),
+        status="open",
+        time_in_force="gtc",
+        reduce_only=False,
+    )
+
+    async def query(_: str) -> Order:
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0)
+        active -= 1
+        return order
+
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="s")
+    stream.request(
+        "order:new",
+        {"cl_ord_id": "client-1"},
+        request_id="request-1",
+        header={
+            "x-request-id": "request-1",
+            "x-request-timestamp": "1700000000000",
+            "x-request-signature": "signature",
+        },
+    )
+    reconciler = OrderStateReconciler(query)
+    event = UserOrderEvent(id=9, status="open", qty=Decimal(1), cl_ord_id="client-1")
+
+    async def scenario() -> None:
+        await asyncio.gather(
+            reconciler.apply_user_event(event),
+            reconciler.recover_pending(stream),
+        )
+
+    asyncio.run(scenario())
+
+    assert max_active == 1
+    assert reconciler.get("client-1") is order
+
+
 def test_order_state_reconciler_restores_cache_from_open_orders() -> None:
     order = Order(
         id=8,

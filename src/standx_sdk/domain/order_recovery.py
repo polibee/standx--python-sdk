@@ -36,11 +36,18 @@ class OrderStateReconciler:
     async def recover_pending(self, stream: OrderResponseStream) -> list[Order]:
         """Recover only pending requests whose client ID has a REST snapshot."""
 
-        recovered = await stream.recover_pending(self._query_order)
+        async def query_locked(cl_ord_id: str) -> Order | None:
+            lock = self._refresh_locks.setdefault(cl_ord_id, asyncio.Lock())
+            async with lock:
+                order = await self._query_order(cl_ord_id)
+                if order is not None:
+                    self._orders[cl_ord_id] = order
+                return order
+
+        recovered = await stream.recover_pending(query_locked)
         typed: list[Order] = []
         for value in recovered:
             if isinstance(value, Order) and value.cl_ord_id is not None:
-                self._orders[value.cl_ord_id] = value
                 typed.append(value)
         return typed
 
