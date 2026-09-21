@@ -5,6 +5,7 @@ import pytest
 from standx_sdk.models.market import InstrumentRules
 from standx_sdk.models.order import (
     CreateOrderRequest,
+    MarginMode,
     OrderSide,
     OrderStatus,
     OrderType,
@@ -41,6 +42,30 @@ def test_market_order_does_not_accept_a_price() -> None:
             price=Decimal(50000),
             time_in_force=TimeInForce.IOC,
             reduce_only=False,
+        )
+
+
+def test_order_margin_mode_is_limited_to_documented_values() -> None:
+    request = CreateOrderRequest(
+        symbol="BTC-USD",
+        side=OrderSide.BUY,
+        order_type=OrderType.MARKET,
+        qty=Decimal("0.1"),
+        time_in_force=TimeInForce.IOC,
+        reduce_only=False,
+        margin_mode=MarginMode.ISOLATED,
+    )
+    assert request.margin_mode is MarginMode.ISOLATED
+
+    with pytest.raises(ValueError, match="margin_mode"):
+        CreateOrderRequest(
+            symbol="BTC-USD",
+            side=OrderSide.BUY,
+            order_type=OrderType.MARKET,
+            qty=Decimal("0.1"),
+            time_in_force=TimeInForce.IOC,
+            reduce_only=False,
+            margin_mode="hedged",
         )
 
 

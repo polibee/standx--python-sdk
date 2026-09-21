@@ -44,7 +44,7 @@ class CreateOrderRequest:
     reduce_only: bool
     price: Decimal | None = None
     cl_ord_id: str | None = None
-    margin_mode: str | None = None
+    margin_mode: MarginMode | str | None = None
     leverage: int | None = None
     tp_price: Decimal | None = None
     sl_price: Decimal | None = None
@@ -62,6 +62,10 @@ class CreateOrderRequest:
             raise ValueError("price must be positive")
         if self.leverage is not None and self.leverage <= 0:
             raise ValueError("leverage must be positive")
+        if self.margin_mode is not None:
+            value = self.margin_mode.value if isinstance(self.margin_mode, MarginMode) else self.margin_mode
+            if value not in {mode.value for mode in MarginMode}:
+                raise ValueError("margin_mode must be cross or isolated")
 
 
 @dataclass(frozen=True, slots=True)

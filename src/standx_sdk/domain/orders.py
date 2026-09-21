@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from ..errors import ErrorCode, StandXError
 from ..models.market import InstrumentRules
-from ..models.order import CreateOrderRequest, Order
+from ..models.order import CreateOrderRequest, MarginMode, Order
 from ..transport.http import HttpTransport
 from ..validation.orders import validate_order
 
@@ -33,6 +33,8 @@ class OrdersApi:
         rules: InstrumentRules | None = None,
         position_qty: Decimal | None = None,
         pending_reduce_only_qty: Decimal = Decimal(0),
+        position_leverage: int | None = None,
+        position_margin_mode: str | None = None,
     ) -> SubmissionResult:
         if rules is not None:
             validate_order(
@@ -40,6 +42,8 @@ class OrdersApi:
                 rules,
                 position_qty=position_qty,
                 pending_reduce_only_qty=pending_reduce_only_qty,
+                position_leverage=position_leverage,
+                position_margin_mode=position_margin_mode,
             )
         body: dict[str, object] = {
             "symbol": request.symbol,
@@ -52,7 +56,11 @@ class OrdersApi:
         optional = {
             "price": _decimal(request.price),
             "cl_ord_id": request.cl_ord_id or str(uuid.uuid4()),
-            "margin_mode": request.margin_mode,
+            "margin_mode": (
+                request.margin_mode.value
+                if isinstance(request.margin_mode, MarginMode)
+                else request.margin_mode
+            ),
             "leverage": request.leverage,
             "tp_price": _decimal(request.tp_price),
             "sl_price": _decimal(request.sl_price),

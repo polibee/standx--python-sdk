@@ -15,6 +15,7 @@ All notable changes to this project are documented here.
 - REST-backed order state reconciliation for user events, pending response recovery, and process restart recovery.
 - Stable error codes, timeout/unknown-order handling, rate limiting, and server error context.
 - Automatic `cl_ord_id` generation for orders that omit a client order ID, with the ID retained in `SubmissionResult`.
+- Explicit validation of order `margin_mode` values and optional matching against current leverage/margin configuration.
 
 ### Safety
 

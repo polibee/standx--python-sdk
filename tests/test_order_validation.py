@@ -65,6 +65,21 @@ def test_validate_order_enforces_leverage_and_reduce_only_capacity() -> None:
         )
 
 
+def test_validate_order_requires_leverage_and_margin_mode_to_match_position() -> None:
+    with pytest.raises(OrderValidationError, match="position_leverage"):
+        validate_order(
+            request(leverage=10),
+            rules(),
+            position_leverage=5,
+        )
+    with pytest.raises(OrderValidationError, match="margin_mode"):
+        validate_order(
+            request(margin_mode="isolated"),
+            rules(),
+            position_margin_mode="cross",
+        )
+
+
 def test_validate_order_accepts_values_aligned_with_symbol_rules() -> None:
     validate_order(
         request(qty=Decimal("0.1234"), price=Decimal("50000.01")),

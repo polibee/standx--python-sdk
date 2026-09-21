@@ -13,6 +13,8 @@ def validate_order(
     *,
     position_qty: Decimal | None = None,
     pending_reduce_only_qty: Decimal = Decimal(0),
+    position_leverage: int | None = None,
+    position_margin_mode: str | None = None,
 ) -> None:
     if request.symbol != rules.symbol:
         raise OrderValidationError("symbol", request.symbol, f"symbol must be {rules.symbol}")
@@ -30,6 +32,22 @@ def validate_order(
         )
     if request.leverage is not None and request.leverage > rules.max_leverage:
         raise OrderValidationError("leverage", request.leverage, f"leverage <= {rules.max_leverage}")
+    if (
+        request.leverage is not None
+        and position_leverage is not None
+        and request.leverage != position_leverage
+    ):
+        raise OrderValidationError(
+            "position_leverage", request.leverage, f"must equal {position_leverage}"
+        )
+    if (
+        request.margin_mode is not None
+        and position_margin_mode is not None
+        and request.margin_mode != position_margin_mode
+    ):
+        raise OrderValidationError(
+            "margin_mode", request.margin_mode, f"must equal {position_margin_mode}"
+        )
     if request.reduce_only:
         if position_qty is None:
             raise OrderValidationError("reduce_only", request.qty, "position_qty is required")
