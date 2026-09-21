@@ -1,0 +1,144 @@
+这是一个架构级工作，应该先确认 SDK 设计，再进入实现。
+
+可以把 StandX 做成独立、可复用的 SDK，而不是直接把协议代码散落在交易机器人 Adapter 中：
+
+```text
+standx-sdk-contract/
+├── language-neutral/
+│   ├── models.yaml
+│   ├── errors.yaml
+│   ├── rest.yaml
+│   ├── websocket.yaml
+│   └── test-vectors/
+├── python/
+│   └── standx_sdk/
+└── golang/
+    └── standxsdk/
+```
+
+推荐分层：
+
+```text
+StandX SDK
+├── auth
+│   ├── EVM 钱包签名
+│   ├── Solana/SVM 钱包签名
+│   ├── prepare-signin
+│   ├── login
+│   └── JWT 刷新/过期
+├── rest
+│   ├── 市场
+│   ├── 账户
+│   ├── 余额
+│   ├── 持仓
+│   ├── 订单
+│   └── 撤单
+├── websocket
+│   ├── Market Stream
+│   ├── User Stream
+│   ├── Order Response Stream
+│   ├── request_id/session_id 关联
+│   ├── 心跳
+│   ├── 自动重连
+│   └── 断线后的订阅恢复
+├── models
+├── errors
+├── retry
+├── rate_limit
+└── testing
+    ├── Fake REST Server
+    ├── Fake WebSocket Server
+    └── deterministic test fixtures
+```
+
+核心原则：
+
+1. Python 和 Go 使用同一份语言无关协议契约。
+2. SDK 输出统一 DTO，不把 REST 原始 JSON 暴露给业务层。
+3. SDK 负责签名、JWT、请求 ID、重连、限流、错误转换。
+4. 交易机器人只依赖 `StandXAdapter`，不直接依赖 SDK 内部实现。
+5. SDK 不保存私钥；通过 `Signer` 接口注入 EVM/SVM 签名能力。
+6. 下单必须携带 `client_order_id` 或幂等键。
+7. WebSocket 订单响应必须按 `session_id + request_id` 关联。
+8. REST 查询、市场流、用户流、异步订单响应流必须分离。
+9. SDK 默认只支持测试网/PAPER，LIVE 必须显式配置。
+10. SDK 错误必须统一为跨语言错误码，例如：
+
+```text
+AUTH_FAILED
+TOKEN_EXPIRED
+INVALID_SIGNATURE
+RATE_LIMITED
+REQUEST_TIMEOUT
+ORDER_REJECTED
+ORDER_UNKNOWN
+WS_DISCONNECTED
+WS_RESUBSCRIBE_FAILED
+PROTOCOL_ERROR
+```
+
+Python 使用方式目标：
+
+```python
+from standx_sdk import StandXClient
+from standx_sdk.auth import EvmSigner
+
+client = StandXClient(
+    base_url="https://perps.standx.com",
+    signer=EvmSigner(private_key_provider),
+)
+
+await client.login()
+markets = await client.markets.list()
+account = await client.account.snapshot()
+order = await client.orders.create(...)
+await client.orders.cancel(...)
+```
+
+Go 使用方式目标：
+
+```go
+client, err := standxsdk.NewClient(
+    standxsdk.Config{
+        BaseURL: "https://perps.standx.com",
+        Signer:  evmSigner,
+    },
+)
+
+err = client.Auth.Login(ctx)
+markets, err := client.Markets.List(ctx)
+order, err := client.Orders.Create(ctx, request)
+```
+
+交易机器人集成关系：
+
+```text
+StandX REST/WS 协议
+        ↓
+Python StandX SDK
+        ↓
+StandXAdapter
+        ↓
+统一 ExchangeAdapterPort
+        ↓
+Execution / Reconciliation / ExitProtection / Bot Runtime
+```
+
+开发阶段建议：
+
+1. 先建立跨语言协议契约和错误码。
+2. 实现 Python SDK 的 REST、认证、订单和 Fake Server。
+3. 实现 Python SDK 的两个 WebSocket 流。
+4. 实现 `StandXAdapter` 和统一 DTO 映射。
+5. 用同一份测试向量实现 Go SDK。
+6. 实现 Go REST/WS SDK。
+7. 最后注册到 Exchange Registry。
+8. 在真实账户连接前完成 PAPER、断线恢复、订单未知状态和幂等测试。
+
+需要明确：这属于新的独立 SDK 子系统，不能直接边写边改 Adapter。建议先把上述设计写成：
+
+```text
+docs/standx-sdk-design.md
+```
+
+然后再按设计实现 Python SDK、Go SDK 和 `StandXAdapter`。如果这个设计方向确认，我下一步先写正式设计文档，不会把 StandX 伪装成已有官方 SDK 集成。
