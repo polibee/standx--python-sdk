@@ -15,6 +15,10 @@ def test_client_exposes_domain_services_and_stream_factories() -> None:
     assert client.auth is not None
     assert client.markets is not None
     assert client.account is not None
+    assert client.positions is not None
+    assert client.trades is not None
+    assert client.positions._account is client.account
+    assert client.trades._account is client.account
     assert client.orders is not None
     assert client.streams.market() is not None
     assert client.streams.order_response() is not None

@@ -4,6 +4,7 @@ from .auth.service import AuthService, AuthTransport
 from .auth.wallet import WalletSigner
 from .config import ClientConfig
 from .domain.account import AccountApi
+from .domain.account_views import PositionsApi, TradesApi
 from .domain.markets import MarketsApi
 from .domain.orders import OrdersApi
 from .streams.market import MarketStream
@@ -68,6 +69,8 @@ class StandXClient:
         )
         self.markets = MarketsApi(transport)
         self.account = AccountApi(transport)
+        self.positions = PositionsApi(self.account)
+        self.trades = TradesApi(self.account)
         self.orders = OrdersApi(transport)
         self.streams = _Streams(config)
 

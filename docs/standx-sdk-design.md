@@ -93,6 +93,8 @@ client = StandXClient(
 
 `AuthService.login()`成功后会通过 token sink 更新共享 REST transport 的 Bearer token，因此后续账户、订单和市场请求使用同一个认证状态。`StandXClient.close_async()`负责关闭已创建的 stream、REST transport 和认证 transport；调用方在异步应用退出时必须调用它。
 
+`StandXClient.positions`和`StandXClient.trades`是面向领域的类型化服务视图，复用同一个 `AccountApi`和 HTTP transport；它们不创建新的认证或网络状态，也不暴露原始 REST JSON。
+
 ### 5.2 服务入口
 
 ```python

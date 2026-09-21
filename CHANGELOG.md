@@ -27,6 +27,7 @@ All notable changes to this project are documented here.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
+- Added typed `client.positions` and `client.trades` service views backed by the shared account transport.
 - Expanded `InstrumentRules` with documented enabled and lifecycle timestamp metadata.
 - Expanded Market Stream user order events with documented order snapshot fields.
 - Expanded Market Stream position and balance events with documented account metadata.

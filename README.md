@@ -23,6 +23,8 @@ client = StandXClient(
 
 rules = await client.markets.symbol_info("BTC-USD")
 balance = await client.account.balance()
+positions = await client.positions.list(symbol="BTC-USD")
+trades = await client.trades.list(symbol="BTC-USD", limit=50)
 
 order = CreateOrderRequest(
     symbol="BTC-USD",
