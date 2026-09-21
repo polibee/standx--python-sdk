@@ -124,6 +124,7 @@ def test_market_price_event_maps_documented_last_price() -> None:
     price = stream.decode(
         {
             "channel": "price",
+            "seq": 13,
             "data": {
                 "symbol": "BTC-USD",
                 "base": "BTC",
@@ -136,6 +137,7 @@ def test_market_price_event_maps_documented_last_price() -> None:
     )
     assert isinstance(price, PriceEvent)
     assert price.last_price == Decimal("121897.95")
+    assert price.seq == 13
     assert price.mark_price == Decimal("121897.56")
     assert price.base == "BTC"
     assert price.quote == "DUSD"

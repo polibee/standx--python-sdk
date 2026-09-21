@@ -159,6 +159,7 @@ class MarketStream(StreamBase):
     def decode(self, message: dict[str, Any]) -> Any:
         channel = message.get("channel")
         data = message.get("data")
+        seq = _optional_int(message.get("seq"))
         if not isinstance(channel, str) or not isinstance(data, dict):
             raise StandXError(
                 ErrorCode.PROTOCOL_ERROR,
@@ -191,6 +192,7 @@ class MarketStream(StreamBase):
                 source=_optional_str(data.get("source")),
                 user=_optional_str(data.get("user")),
                 updated_at=_optional_str(data.get("updated_at")),
+                seq=seq,
             )
         if channel == "position":
             return PositionEvent(
@@ -208,6 +210,7 @@ class MarketStream(StreamBase):
                 status=_optional_str(data.get("status")),
                 user=_optional_str(data.get("user")),
                 updated_at=_optional_str(data.get("updated_at")),
+                seq=seq,
             )
         if channel == "balance":
             return BalanceEvent(
@@ -229,6 +232,7 @@ class MarketStream(StreamBase):
                 updated_at=_optional_str(data.get("updated_at")),
                 version=_optional_int(data.get("version")),
                 wallet_id=_optional_str(data.get("wallet_id")),
+                seq=seq,
             )
         if channel == "trade":
             return UserTradeEvent(
@@ -239,6 +243,7 @@ class MarketStream(StreamBase):
                 order_id=_optional_int(data.get("order_id")),
                 fee_qty=_optional_decimal(data.get("fee_qty")),
                 fee_asset=_optional_str(data.get("fee_asset")),
+                seq=seq,
             )
         if channel == "price":
             spread = data.get("spread")
@@ -254,12 +259,14 @@ class MarketStream(StreamBase):
                 if spread is None
                 else (_decimal(spread[0]), _decimal(spread[1])),
                 time=_optional_str(data.get("time")),
+                seq=seq,
             )
         if channel == "depth_book":
             return DepthBookEvent(
                 symbol=str(data["symbol"]),
                 asks=_levels(data.get("asks", [])),
                 bids=_levels(data.get("bids", [])),
+                seq=seq,
             )
         if channel == "public_trade":
             return PublicTradeEvent(
@@ -268,6 +275,7 @@ class MarketStream(StreamBase):
                 price=_decimal(data["price"]),
                 qty=_decimal(data["qty"]),
                 side=_optional_str(data.get("side")),
+                seq=seq,
             )
         raise ValueError(f"unsupported StandX Market Stream channel: {channel}")
 

@@ -24,6 +24,7 @@ All notable changes to this project are documented here.
 - Expanded `Order` snapshots with documented lock, margin, position, source, block, and timestamp fields.
 - Expanded symbol market DTOs with documented base, quote, and spread fields.
 - Added injectable authentication headers to Order Response Stream requests.
+- Preserved Market Stream top-level `seq` values in all typed channel events.
 - Expanded `InstrumentRules` with documented enabled and lifecycle timestamp metadata.
 - Expanded Market Stream user order events with documented order snapshot fields.
 - Expanded Market Stream position and balance events with documented account metadata.

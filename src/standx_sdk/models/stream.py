@@ -31,6 +31,7 @@ class UserOrderEvent:
     source: str | None = None
     user: str | None = None
     updated_at: str | None = None
+    seq: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +50,7 @@ class PositionEvent:
     status: str | None = None
     user: str | None = None
     updated_at: str | None = None
+    seq: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +73,7 @@ class BalanceEvent:
     updated_at: str | None = None
     version: int | None = None
     wallet_id: str | None = None
+    seq: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +85,7 @@ class UserTradeEvent:
     order_id: int | None = None
     fee_qty: Decimal | None = None
     fee_asset: str | None = None
+    seq: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +107,7 @@ class PriceEvent:
     mid_price: Decimal | None = None
     spread: tuple[Decimal, Decimal] | None = None
     time: str | None = None
+    seq: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +115,7 @@ class DepthBookEvent:
     symbol: str
     asks: tuple[tuple[Decimal, Decimal], ...]
     bids: tuple[tuple[Decimal, Decimal], ...]
+    seq: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,3 +125,4 @@ class PublicTradeEvent:
     price: Decimal
     qty: Decimal
     side: str | None = None
+    seq: int | None = None
