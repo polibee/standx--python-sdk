@@ -16,10 +16,16 @@ class OrderResponseStream(StreamBase):
             raise ValueError("session_id must not be empty")
         self.session_id = session_id
         self.transport = transport or WebSocketTransport(endpoint)
+        self._pending_request_ids: set[str] = set()
+
+    @property
+    def pending_request_ids(self) -> set[str]:
+        return set(self._pending_request_ids)
 
     def request(self, method: str, params: dict[str, Any], *, request_id: str) -> dict[str, Any]:
         if method not in {"auth:login", "order:new", "order:cancel"}:
             raise ValueError("unsupported StandX Order Response method")
+        self._pending_request_ids.add(request_id)
         return {
             "session_id": self.session_id,
             "request_id": request_id,
@@ -27,6 +33,12 @@ class OrderResponseStream(StreamBase):
             "header": {},
             "params": json.dumps(params, separators=(",", ":"), ensure_ascii=False),
         }
+
+    def resolve(self, response: dict[str, Any]) -> dict[str, Any]:
+        request_id = response.get("request_id")
+        if isinstance(request_id, str):
+            self._pending_request_ids.discard(request_id)
+        return response
 
     async def connect(self) -> None:
         await self.transport.connect()

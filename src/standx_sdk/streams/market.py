@@ -10,6 +10,7 @@ class MarketStream(StreamBase):
     def __init__(self, endpoint: str, transport: WebSocketTransport | None = None) -> None:
         super().__init__(endpoint)
         self.transport = transport or WebSocketTransport(endpoint)
+        self._subscriptions: list[tuple[str, str | None]] = []
 
     def subscription(self, channel: str, symbol: str | None = None) -> dict[str, Any]:
         if channel in {"price", "depth_book", "public_trade"} and not symbol:
@@ -35,9 +36,20 @@ class MarketStream(StreamBase):
     async def subscribe(self, channel: str, symbol: str | None = None) -> None:
         import json
 
+        subscription = (channel, symbol)
+        if subscription not in self._subscriptions:
+            self._subscriptions.append(subscription)
         await self.transport.send(
             json.dumps(self.subscription(channel, symbol), separators=(",", ":"))
         )
+
+    async def reconnect(self) -> None:
+        if self.closed:
+            raise RuntimeError("closed stream cannot reconnect")
+        await self.transport.close()
+        await self.transport.connect()
+        for channel, symbol in self._subscriptions:
+            await self.subscribe(channel, symbol)
 
     async def receive(self) -> Any:
         import json

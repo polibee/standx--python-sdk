@@ -487,6 +487,8 @@ Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`me
 
 订单响应流必须使用 `session_id + request_id`做关联，不能只使用单一 request ID。断线期间未确认的请求不能自动判定为成功或失败，应进入本地未知状态并由 REST 查询恢复。
 
+SDK 的 stream 对象必须记录已成功订阅的 channel，并在连接重建后按原顺序重放订阅。调用方显式关闭后不得自动重连。Order Response Stream 必须记录 pending `request_id`，收到响应后移除对应 ID；连接断开时仍 pending 的订单请求保持本地未知状态，不能伪造成功或失败。
+
 手动关闭必须取消重连任务；协议错误必须转换为 `PROTOCOL_ERROR`；恢复订阅失败必须转换为 `WS_RESUBSCRIBE_FAILED`并保留原始诊断上下文。
 
 ## 10. 统一错误模型
