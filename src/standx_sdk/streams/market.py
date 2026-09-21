@@ -159,7 +159,13 @@ class MarketStream(StreamBase):
     def decode(self, message: dict[str, Any]) -> Any:
         channel = message.get("channel")
         data = message.get("data")
-        seq = _optional_int(message.get("seq"))
+        raw_seq = message.get("seq")
+        if raw_seq is not None and (isinstance(raw_seq, bool) or not isinstance(raw_seq, int)):
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "StandX Market Stream seq must be an integer",
+            )
+        seq = raw_seq
         if not isinstance(channel, str) or not isinstance(data, dict):
             raise StandXError(
                 ErrorCode.PROTOCOL_ERROR,

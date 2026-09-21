@@ -1,7 +1,10 @@
 import asyncio
 from decimal import Decimal
 
+import pytest
+
 from standx_sdk.domain.order_recovery import OrderStateReconciler
+from standx_sdk.errors import ErrorCode, StandXError
 from standx_sdk.models.order import Order
 from standx_sdk.models.stream import BalanceEvent, PositionEvent, PriceEvent, UserOrderEvent
 from standx_sdk.streams.market import MarketStream
@@ -142,6 +145,21 @@ def test_market_price_event_maps_documented_last_price() -> None:
     assert price.base == "BTC"
     assert price.quote == "DUSD"
     assert price.time == "2025-08-11T07:23:50.923602474Z"
+
+
+def test_market_stream_rejects_non_integer_sequence_numbers() -> None:
+    stream = MarketStream("wss://example.test/ws-stream/v1")
+
+    with pytest.raises(StandXError) as caught:
+        stream.decode(
+            {
+                "channel": "price",
+                "seq": "13",
+                "data": {"symbol": "BTC-USD", "last_price": "1"},
+            }
+        )
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
 
 
 def test_pending_order_response_can_be_recovered_from_rest() -> None:

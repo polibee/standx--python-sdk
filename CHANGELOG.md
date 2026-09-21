@@ -25,6 +25,7 @@ All notable changes to this project are documented here.
 - Expanded symbol market DTOs with documented base, quote, and spread fields.
 - Added injectable authentication headers to Order Response Stream requests.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
+- Added protocol-error validation for non-integer Market Stream sequence values.
 - Expanded `InstrumentRules` with documented enabled and lifecycle timestamp metadata.
 - Expanded Market Stream user order events with documented order snapshot fields.
 - Expanded Market Stream position and balance events with documented account metadata.
