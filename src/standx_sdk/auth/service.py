@@ -7,6 +7,7 @@ from typing import Any, Protocol, cast
 
 from nacl.signing import SigningKey
 
+from ..errors import ErrorCode, StandXError
 from .token import LoginResponse
 from .wallet import WalletSigner
 
@@ -39,7 +40,10 @@ def _jwt_payload(token: str) -> dict[str, Any]:
         encoded += "=" * (-len(encoded) % 4)
         return cast(dict[str, Any], json.loads(base64.urlsafe_b64decode(encoded).decode("utf-8")))
     except (IndexError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError("signedData is not a valid JWT") from exc
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "signedData is not a valid JWT",
+        ) from exc
 
 
 class AuthService:
@@ -66,14 +70,14 @@ class AuthService:
             json={"address": self._signer.address, "requestId": request_id},
         )
         if prepared.get("success") is not True:
-            raise ValueError("failed to prepare sign-in")
+            raise StandXError(ErrorCode.AUTH_FAILED, "failed to prepare sign-in")
         signed_data = prepared.get("signedData")
         if not isinstance(signed_data, str):
-            raise TypeError("prepare-signin did not return signedData")
+            raise StandXError(ErrorCode.PROTOCOL_ERROR, "prepare-signin did not return signedData")
         payload = _jwt_payload(signed_data)
         message = payload.get("message")
         if not isinstance(message, str):
-            raise TypeError("signedData payload did not contain message")
+            raise StandXError(ErrorCode.PROTOCOL_ERROR, "signedData payload did not contain message")
         signature = await self._signer.sign_login_message(message)
         response = await self._transport.post(
             "/v1/offchain/login",

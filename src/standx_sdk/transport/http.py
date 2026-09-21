@@ -65,6 +65,10 @@ class HttpTransport:
             raise StandXError(
                 ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", retryable=True
             ) from exc
+        except httpx.NetworkError as exc:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", retryable=True
+            ) from exc
         self._raise_for_status(response)
         return self._decode_json(response)
 
@@ -90,6 +94,10 @@ class HttpTransport:
         except httpx.TimeoutException as exc:
             raise StandXError(
                 ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", retryable=True
+            ) from exc
+        except httpx.NetworkError as exc:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", retryable=True
             ) from exc
         self._raise_for_status(response)
         return self._decode_json(response)

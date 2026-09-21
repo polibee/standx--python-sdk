@@ -352,6 +352,19 @@ def test_http_transport_maps_successful_invalid_json_to_protocol_error() -> None
     assert caught.value.retryable is False
 
 
+def test_http_transport_maps_connection_error_to_retryable_protocol_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection failed", request=request)
+
+    transport = HttpTransport("https://perps.standx.com", httpx.MockTransport(handler))
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(transport.get("/api/query_balance"))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is True
+
+
 def test_http_transport_acquires_credit_before_each_request() -> None:
     now = [0.0]
     limiter = CreditRateLimiter(clock=lambda: now[0], sleep=asyncio.sleep)
