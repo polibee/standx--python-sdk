@@ -14,6 +14,7 @@ All notable changes to this project are documented here.
   subscription recovery, session/request correlation, and offline Fake WebSocket testing.
 - REST-backed order state reconciliation for user events, pending response recovery, and process restart recovery.
 - Stable error codes, timeout/unknown-order handling, rate limiting, and server error context.
+- Automatic `cl_ord_id` generation for orders that omit a client order ID, with the ID retained in `SubmissionResult`.
 
 ### Safety
 

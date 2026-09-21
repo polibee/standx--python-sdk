@@ -51,6 +51,7 @@ def test_new_order_uses_documented_path_and_decimal_strings() -> None:
     )
 
     assert result.request_id == "r1"
+    assert result.cl_ord_id is not None
     assert seen == {
         "method": "POST",
         "path": "/api/new_order",
@@ -62,8 +63,44 @@ def test_new_order_uses_documented_path_and_decimal_strings() -> None:
             "price": "50000",
             "time_in_force": "gtc",
             "reduce_only": False,
+            "cl_ord_id": result.cl_ord_id,
         },
     }
+
+
+def test_new_order_generates_client_order_id_when_omitted() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"code": 0, "message": "success", "request_id": "r1"})
+
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(handler),
+            request_signer=FakeSigner(),
+        )
+    )
+
+    asyncio.run(
+        api.create(
+            CreateOrderRequest(
+                symbol="BTC-USD",
+                side=OrderSide.BUY,
+                order_type=OrderType.LIMIT,
+                qty=Decimal("0.1"),
+                price=Decimal(50000),
+                time_in_force=TimeInForce.GTC,
+                reduce_only=False,
+            )
+        )
+    )
+
+    body = seen["body"]
+    assert isinstance(body, dict)
+    assert isinstance(body["cl_ord_id"], str)
+    assert body["cl_ord_id"]
 
 
 def test_cancel_requires_order_id_or_client_order_id() -> None:

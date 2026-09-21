@@ -37,6 +37,8 @@ order = CreateOrderRequest(
 submission = await client.orders.create(order)
 current = await client.orders.query_order(cl_ord_id="client-example-1")
 
+# If cl_ord_id is omitted, the SDK generates one and returns it in submission.cl_ord_id.
+
 # User order events are notifications; re-read REST for a complete snapshot.
 from standx_sdk.domain import OrderStateReconciler
 

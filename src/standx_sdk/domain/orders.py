@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
@@ -14,6 +15,7 @@ class SubmissionResult:
     code: int
     message: str
     request_id: str
+    cl_ord_id: str | None = None
 
 
 def _decimal(value: Decimal | None) -> str | None:
@@ -49,7 +51,7 @@ class OrdersApi:
         }
         optional = {
             "price": _decimal(request.price),
-            "cl_ord_id": request.cl_ord_id,
+            "cl_ord_id": request.cl_ord_id or str(uuid.uuid4()),
             "margin_mode": request.margin_mode,
             "leverage": request.leverage,
             "tp_price": _decimal(request.tp_price),
@@ -68,7 +70,7 @@ class OrdersApi:
                 retryable=False,
                 server_code=exc.server_code,
             ) from exc
-        return self._result(response)
+        return self._result(response, fallback_cl_ord_id=str(body["cl_ord_id"]))
 
     async def cancel(
         self, *, order_id: int | None = None, cl_ord_id: str | None = None
@@ -141,9 +143,17 @@ class OrdersApi:
         return [_order_from(item) for item in response.get("result", [])]
 
     @staticmethod
-    def _result(value: dict[str, object]) -> SubmissionResult:
+    def _result(
+        value: dict[str, object], *, fallback_cl_ord_id: str | None = None
+    ) -> SubmissionResult:
         typed = cast(dict[str, Any], value)
-        return SubmissionResult(int(typed["code"]), str(typed["message"]), str(typed["request_id"]))
+        cl_ord_id = typed.get("cl_ord_id")
+        return SubmissionResult(
+            int(typed["code"]),
+            str(typed["message"]),
+            str(typed["request_id"]),
+            cl_ord_id if isinstance(cl_ord_id, str) else fallback_cl_ord_id,
+        )
 
 
 __all__ = ["OrdersApi", "SubmissionResult"]
