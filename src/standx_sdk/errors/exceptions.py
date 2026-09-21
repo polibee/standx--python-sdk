@@ -10,12 +10,14 @@ class StandXError(Exception):
         message: str,
         request_id: str | None = None,
         retryable: bool = False,
+        server_code: int | str | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.request_id = request_id
         self.retryable = retryable
+        self.server_code = server_code
         self.retry_after_seconds: float | None = None
 
 

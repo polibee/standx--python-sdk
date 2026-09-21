@@ -56,6 +56,13 @@ class OrderResponseStream(StreamBase):
                 ErrorCode.PROTOCOL_ERROR,
                 "Order Response is missing request_id",
             )
+        response_session_id = response.get("session_id")
+        if response_session_id is not None and response_session_id != self.session_id:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "Order Response session_id does not match stream session",
+                request_id=request_id,
+            )
         code = int(response.get("code", 0))
         status = response.get("status")
         if status == "accepted":

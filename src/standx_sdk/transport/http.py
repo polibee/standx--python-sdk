@@ -120,6 +120,7 @@ class HttpTransport:
             message=str(message) if message else f"HTTP {response.status_code}",
             request_id=request_id,
             retryable=retryable,
+            server_code=payload.get("code") if isinstance(payload, dict) else None,
         )
         retry_after = response.headers.get("retry-after")
         if retry_after is not None:

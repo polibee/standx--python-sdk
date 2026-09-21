@@ -225,3 +225,15 @@ def test_stream_protocol_errors_use_stable_sdk_error_code() -> None:
 
     assert response_error.value.code is ErrorCode.PROTOCOL_ERROR
     assert market_error.value.code is ErrorCode.PROTOCOL_ERROR
+
+
+def test_order_response_rejects_response_from_different_session() -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+
+    with pytest.raises(StandXError) as caught:
+        stream.decode_response(
+            {"session_id": "session-2", "request_id": "request-1", "code": 0}
+        )
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.request_id == "request-1"
