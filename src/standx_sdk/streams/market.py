@@ -1,7 +1,20 @@
-"""StandX Market Stream envelope and subscription boundary."""
+"""StandX Market Stream envelope, DTO mapping, and lifecycle boundary."""
 
+import asyncio
+import inspect
+import json
+from collections.abc import Callable
 from typing import Any
 
+from ..models.stream import (
+    BalanceEvent,
+    DepthBookEvent,
+    PositionEvent,
+    PriceEvent,
+    PublicTradeEvent,
+    UserOrderEvent,
+    UserTradeEvent,
+)
 from ..transport.websocket import WebSocketTransport
 from .base import StreamBase
 
@@ -31,11 +44,36 @@ class MarketStream(StreamBase):
         return {"subscribe": value}
 
     async def connect(self) -> None:
+        if self.closed:
+            raise RuntimeError("closed stream cannot connect")
         await self.transport.connect()
 
-    async def subscribe(self, channel: str, symbol: str | None = None) -> None:
-        import json
+    async def connect_with_backoff(
+        self,
+        *,
+        max_attempts: int = 5,
+        initial_delay: float = 0.5,
+        sleep: Callable[[float], object] | None = None,
+    ) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
+        if initial_delay < 0:
+            raise ValueError("initial_delay must not be negative")
+        pause = sleep or asyncio.sleep
+        delay = initial_delay
+        for attempt in range(max_attempts):
+            try:
+                await self.connect()
+                return
+            except Exception:
+                if attempt == max_attempts - 1:
+                    raise
+                result = pause(delay)
+                if inspect.isawaitable(result):
+                    await result
+                delay *= 2
 
+    async def subscribe(self, channel: str, symbol: str | None = None) -> None:
         subscription = (channel, symbol)
         if subscription not in self._subscriptions:
             self._subscriptions.append(subscription)
@@ -47,15 +85,115 @@ class MarketStream(StreamBase):
         if self.closed:
             raise RuntimeError("closed stream cannot reconnect")
         await self.transport.close()
-        await self.transport.connect()
+        await self.connect()
         for channel, symbol in self._subscriptions:
             await self.subscribe(channel, symbol)
 
     async def receive(self) -> Any:
-        import json
-
         return json.loads(await self.transport.receive())
+
+    def decode(self, message: dict[str, Any]) -> Any:
+        channel = message.get("channel")
+        data = message.get("data")
+        if not isinstance(channel, str) or not isinstance(data, dict):
+            raise TypeError("invalid StandX Market Stream message")
+        if channel == "order":
+            return UserOrderEvent(
+                id=int(data["id"]),
+                status=str(data["status"]),
+                qty=_decimal(data["qty"]),
+                symbol=_optional_str(data.get("symbol")),
+                side=_optional_str(data.get("side")),
+                order_type=_optional_str(data.get("order_type")),
+                price=_optional_decimal(data.get("price")),
+                fill_qty=_optional_decimal(data.get("fill_qty")),
+                fill_avg_price=_optional_decimal(data.get("fill_avg_price")),
+                cl_ord_id=_optional_str(data.get("cl_ord_id")),
+                reduce_only=bool(data.get("reduce_only", False)),
+                time_in_force=_optional_str(data.get("time_in_force")),
+                updated_at=_optional_str(data.get("updated_at")),
+            )
+        if channel == "position":
+            return PositionEvent(
+                id=int(data["id"]),
+                qty=_decimal(data["qty"]),
+                leverage=int(data["leverage"]),
+                symbol=_optional_str(data.get("symbol")),
+                entry_price=_optional_decimal(data.get("entry_price")),
+                entry_value=_optional_decimal(data.get("entry_value")),
+                margin_mode=_optional_str(data.get("margin_mode")),
+                status=_optional_str(data.get("status")),
+                updated_at=_optional_str(data.get("updated_at")),
+            )
+        if channel == "balance":
+            return BalanceEvent(
+                token=str(data["token"]),
+                total=_decimal(data["total"]),
+                free=_optional_decimal(data.get("free")),
+                locked=_optional_decimal(data.get("locked")),
+                occupied=_optional_decimal(data.get("occupied")),
+                updated_at=_optional_str(data.get("updated_at")),
+            )
+        if channel == "trade":
+            return UserTradeEvent(
+                id=int(data["id"]),
+                symbol=str(data["symbol"]),
+                qty=_decimal(data["qty"]),
+                price=_decimal(data["price"]),
+                order_id=_optional_int(data.get("order_id")),
+                fee_qty=_optional_decimal(data.get("fee_qty")),
+                fee_asset=_optional_str(data.get("fee_asset")),
+            )
+        if channel == "price":
+            spread = data.get("spread")
+            return PriceEvent(
+                symbol=str(data["symbol"]),
+                last_price=_decimal(data["last_price"]),
+                mark_price=_optional_decimal(data.get("mark_price")),
+                index_price=_optional_decimal(data.get("index_price")),
+                mid_price=_optional_decimal(data.get("mid_price")),
+                spread=None
+                if spread is None
+                else (_decimal(spread[0]), _decimal(spread[1])),
+            )
+        if channel == "depth_book":
+            return DepthBookEvent(
+                symbol=str(data["symbol"]),
+                asks=_levels(data.get("asks", [])),
+                bids=_levels(data.get("bids", [])),
+            )
+        if channel == "public_trade":
+            return PublicTradeEvent(
+                id=int(data["id"]),
+                symbol=str(data["symbol"]),
+                price=_decimal(data["price"]),
+                qty=_decimal(data["qty"]),
+                side=_optional_str(data.get("side")),
+            )
+        raise ValueError(f"unsupported StandX Market Stream channel: {channel}")
 
     async def close_async(self) -> None:
         self.close()
         await self.transport.close()
+
+
+def _decimal(value: Any) -> Any:
+    from decimal import Decimal
+
+    return Decimal(str(value))
+
+
+def _optional_decimal(value: Any) -> Any:
+    return None if value is None else _decimal(value)
+
+
+def _optional_str(value: Any) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _optional_int(value: Any) -> int | None:
+    return None if value is None else int(value)
+
+
+def _levels(value: Any) -> tuple[tuple[Any, Any], ...]:
+    return tuple((_decimal(level[0]), _decimal(level[1])) for level in value)
