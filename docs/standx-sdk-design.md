@@ -535,7 +535,7 @@ Market Stream 订阅恢复失败统一抛出 `StandXError(code=WS_RESUBSCRIBE_FA
 
 连接建立支持注入 sleep 函数的指数退避：默认最多 5 次尝试、初始等待 0.5 秒，每次失败后等待时间翻倍；最后一次失败原样抛出。调用方显式关闭后，连接和重连都会拒绝执行。退避策略不对订单结果做乐观判断，也不会把连接失败转换为订单失败。
 
-Market Stream 与 Order Response Stream 都提供 `connect_with_backoff()`，使用相同的默认退避参数和可注入的 `sleep` 函数。Order Response Stream 的退避只重试 WebSocket 建连，不会重发 pending 的 `order:new` 或 `order:cancel` 请求。
+Market Stream 与 Order Response Stream 都提供 `connect_with_backoff()`，使用相同的默认退避参数和可注入的 `sleep` 函数；调用方还可以设置 `max_delay` 和 `jitter(delay)`，最终等待时间不会超过 `max_delay`。Order Response Stream 的退避只重试 WebSocket 建连，不会重发 pending 的 `order:new` 或 `order:cancel` 请求。
 
 `standx_sdk.testing.FakeWebSocketServer` 和 `FakeWebSocketTransport` 提供纯内存的双向消息队列，用于离线验证订阅、接收和协议恢复，不访问真实 StandX 网络。
 

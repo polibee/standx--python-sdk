@@ -237,3 +237,30 @@ def test_order_response_rejects_response_from_different_session() -> None:
 
     assert caught.value.code is ErrorCode.PROTOCOL_ERROR
     assert caught.value.request_id == "request-1"
+
+
+def test_stream_receive_wraps_invalid_json_as_protocol_error() -> None:
+    class InvalidMessageTransport(FakeTransport):
+        async def receive(self) -> str:
+            return "not-json"
+
+    market = MarketStream(
+        "wss://perps.standx.com/ws-stream/v1", transport=InvalidMessageTransport()  # type: ignore[arg-type]
+    )
+    order_response = OrderResponseStream(
+        "wss://perps.standx.com/ws-api/v1",
+        session_id="session-1",
+        transport=InvalidMessageTransport(),  # type: ignore[arg-type]
+    )
+
+    async def scenario() -> None:
+        await market.connect()
+        await order_response.connect()
+        with pytest.raises(StandXError) as market_error:
+            await market.receive()
+        with pytest.raises(StandXError) as order_error:
+            await order_response.receive()
+        assert market_error.value.code is ErrorCode.PROTOCOL_ERROR
+        assert order_error.value.code is ErrorCode.PROTOCOL_ERROR
+
+    asyncio.run(scenario())

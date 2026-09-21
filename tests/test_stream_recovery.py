@@ -242,3 +242,24 @@ def test_order_response_stream_retries_connection_with_exponential_backoff() -> 
 
     assert transport.connect_count == 3
     assert delays == [0.25, 0.5]
+
+
+def test_order_response_backoff_supports_max_delay_and_jitter() -> None:
+    transport = FlakyTransport(failures=3)
+    stream = OrderResponseStream(
+        "wss://perps.standx.com/ws-api/v1", session_id="s", transport=transport  # type: ignore[arg-type]
+    )
+    delays: list[float] = []
+
+    async def scenario() -> None:
+        await stream.connect_with_backoff(
+            max_attempts=4,
+            initial_delay=1.0,
+            max_delay=1.5,
+            jitter=lambda delay: delay + 0.25,
+            sleep=lambda delay: delays.append(delay),
+        )
+
+    asyncio.run(scenario())
+
+    assert delays == [1.25, 1.5, 1.5]

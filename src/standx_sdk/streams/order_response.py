@@ -108,12 +108,16 @@ class OrderResponseStream(StreamBase):
         *,
         max_attempts: int = 5,
         initial_delay: float = 0.5,
+        max_delay: float | None = None,
+        jitter: Callable[[float], float] | None = None,
         sleep: Callable[[float], object] | None = None,
     ) -> None:
         if max_attempts < 1:
             raise ValueError("max_attempts must be positive")
         if initial_delay < 0:
             raise ValueError("initial_delay must not be negative")
+        if max_delay is not None and max_delay <= 0:
+            raise ValueError("max_delay must be positive or None")
         pause = sleep or asyncio.sleep
         delay = initial_delay
         for attempt in range(max_attempts):
@@ -123,7 +127,14 @@ class OrderResponseStream(StreamBase):
             except Exception:
                 if attempt == max_attempts - 1:
                     raise
-                result = pause(delay)
+                wait = delay if max_delay is None else min(delay, max_delay)
+                if jitter is not None:
+                    wait = jitter(wait)
+                if max_delay is not None:
+                    wait = min(wait, max_delay)
+                if wait < 0:
+                    raise ValueError("jitter must not return a negative delay")
+                result = pause(wait)
                 if inspect.isawaitable(result):
                     await result
                 delay *= 2
@@ -140,7 +151,13 @@ class OrderResponseStream(StreamBase):
         )
 
     async def receive(self) -> Any:
-        return json.loads(await self.transport.receive())
+        try:
+            return json.loads(await self.transport.receive())
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "invalid JSON from Order Response Stream",
+            ) from exc
 
     async def close_async(self) -> None:
         self.close()
