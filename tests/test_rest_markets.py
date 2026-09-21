@@ -81,12 +81,25 @@ def test_market_api_maps_documented_market_and_depth_dtos() -> None:
         if request.url.path == "/api/query_symbol_market":
             return httpx.Response(
                 200,
-                json={"symbol": "BTC-USD", "last_price": "50000", "funding_rate": "0.1"},
+                json={
+                    "base": "BTC",
+                    "quote": "DUSD",
+                    "symbol": "BTC-USD",
+                    "last_price": "50000",
+                    "funding_rate": "0.1",
+                    "spread": ["49999", "50001"],
+                },
             )
         if request.url.path == "/api/query_symbol_price":
             return httpx.Response(
                 200,
-                json={"symbol": "BTC-USD", "last_price": "50000", "spread_bid": "49999"},
+                json={
+                    "base": "BTC",
+                    "quote": "DUSD",
+                    "symbol": "BTC-USD",
+                    "last_price": "50000",
+                    "spread_bid": "49999",
+                },
             )
         return httpx.Response(
             200,
@@ -105,7 +118,12 @@ def test_market_api_maps_documented_market_and_depth_dtos() -> None:
 
     overview, market, price, book = asyncio.run(collect())
     assert overview.symbols[0].last_price == Decimal(50000)
+    assert market.base == "BTC"
+    assert market.quote == "DUSD"
     assert market.funding_rate == Decimal("0.1")
+    assert market.spread == (Decimal(49999), Decimal(50001))
+    assert price.base == "BTC"
+    assert price.quote == "DUSD"
     assert price.spread_bid == Decimal(49999)
     assert book.asks == ((Decimal(50001), Decimal(1)),)
 

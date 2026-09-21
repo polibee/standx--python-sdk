@@ -70,6 +70,8 @@ class MarketsApi:
             mid_price=_optional_decimal(value.get("mid_price")),
             spread_bid=_optional_decimal(value.get("spread_bid")),
             spread_ask=_optional_decimal(value.get("spread_ask")),
+            base=value.get("base") if isinstance(value.get("base"), str) else None,
+            quote=value.get("quote") if isinstance(value.get("quote"), str) else None,
             time=value.get("time"),
         )
 
@@ -119,6 +121,12 @@ def _levels(value: Any) -> tuple[tuple[Decimal, Decimal], ...]:
     return tuple((Decimal(str(level[0])), Decimal(str(level[1]))) for level in value)
 
 
+def _spread(value: Any) -> tuple[Decimal, Decimal] | None:
+    if not isinstance(value, list) or len(value) != 2:
+        return None
+    return Decimal(str(value[0])), Decimal(str(value[1]))
+
+
 def _overview_symbol(value: dict[str, Any]) -> MarketOverviewSymbol:
     return MarketOverviewSymbol(
         base=str(value["base"]),
@@ -141,6 +149,8 @@ def _symbol_market(value: dict[str, Any]) -> SymbolMarket:
         symbol=str(value["symbol"]),
         last_price=_optional_decimal(value.get("last_price")),
         funding_rate=Decimal(str(value["funding_rate"])),
+        base=value.get("base") if isinstance(value.get("base"), str) else None,
+        quote=value.get("quote") if isinstance(value.get("quote"), str) else None,
         mark_price=_optional_decimal(value.get("mark_price")),
         index_price=_optional_decimal(value.get("index_price")),
         mid_price=_optional_decimal(value.get("mid_price")),
@@ -148,6 +158,7 @@ def _symbol_market(value: dict[str, Any]) -> SymbolMarket:
         low_price_24h=_optional_decimal(value.get("low_price_24h")),
         open_interest=_optional_decimal(value.get("open_interest")),
         volume_24h=_optional_decimal(value.get("volume_24h")),
+        spread=_spread(value.get("spread")),
         next_funding_time=value.get("next_funding_time"),
         time=value.get("time"),
     )

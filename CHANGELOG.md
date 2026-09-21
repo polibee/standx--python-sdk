@@ -22,6 +22,7 @@ All notable changes to this project are documented here.
 - Added documented pagination, time-range, and side filters for user trades and funding history.
 - Expanded `PositionSnapshot` with documented margin, liquidation, mark-price, and position-value fields.
 - Expanded `Order` snapshots with documented lock, margin, position, source, block, and timestamp fields.
+- Expanded symbol market DTOs with documented base, quote, and spread fields.
 
 ### Safety
 

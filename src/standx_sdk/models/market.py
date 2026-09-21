@@ -55,6 +55,8 @@ class SymbolMarket:
     symbol: str
     last_price: Decimal | None
     funding_rate: Decimal
+    base: str | None = None
+    quote: str | None = None
     mark_price: Decimal | None = None
     index_price: Decimal | None = None
     mid_price: Decimal | None = None
@@ -62,6 +64,7 @@ class SymbolMarket:
     low_price_24h: Decimal | None = None
     open_interest: Decimal | None = None
     volume_24h: Decimal | None = None
+    spread: tuple[Decimal, Decimal] | None = None
     next_funding_time: str | None = None
     time: str | None = None
 
@@ -75,7 +78,9 @@ class SymbolPrice:
     mid_price: Decimal | None
     spread_bid: Decimal | None
     spread_ask: Decimal | None
-    time: str | None
+    base: str | None = None
+    quote: str | None = None
+    time: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
