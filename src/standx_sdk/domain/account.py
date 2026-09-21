@@ -107,19 +107,51 @@ class AccountApi:
     ) -> ConfigChangeResult:
         return _config_change(await self.change_margin_mode(symbol, margin_mode.value))
 
-    async def trades(self, symbol: str | None = None) -> list[dict[str, Any]]:
-        params = {"symbol": symbol} if symbol else None
+    async def trades(
+        self,
+        symbol: str | None = None,
+        *,
+        last_id: int | None = None,
+        side: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        params = _history_params(
+            symbol=symbol, last_id=last_id, side=side, start=start, end=end, limit=limit
+        )
         response = _decimalize(await self._transport.get("/api/query_trades", params=params))
         if isinstance(response, dict):
             return cast(list[dict[str, Any]], response.get("result", []))
         return cast(list[dict[str, Any]], response)
 
-    async def trade_snapshots(self, symbol: str | None = None) -> list[UserTrade]:
-        values = await self.trades(symbol)
+    async def trade_snapshots(
+        self,
+        symbol: str | None = None,
+        *,
+        last_id: int | None = None,
+        side: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int | None = None,
+    ) -> list[UserTrade]:
+        values = await self.trades(
+            symbol, last_id=last_id, side=side, start=start, end=end, limit=limit
+        )
         return [_trade_from(value) for value in values]
 
-    async def funding_history(self, symbol: str | None = None) -> list[FundingPayment]:
-        params = {"symbol": symbol} if symbol else None
+    async def funding_history(
+        self,
+        symbol: str | None = None,
+        *,
+        start: str | None = None,
+        end: str | None = None,
+        last_id: int | None = None,
+        limit: int | None = None,
+    ) -> list[FundingPayment]:
+        params = _history_params(
+            symbol=symbol, start=start, end=end, last_id=last_id, limit=limit
+        )
         response = _decimalize(
             await self._transport.get("/api/query_funding_history", params=params)
         )
@@ -150,6 +182,11 @@ def _required_decimal(value: dict[str, Any], key: str) -> Decimal:
     if key not in value:
         raise ValueError(f"StandX response missing {key}")
     return Decimal(str(value[key]))
+
+
+def _history_params(**values: object) -> dict[str, object] | None:
+    params = {key: value for key, value in values.items() if value is not None}
+    return params or None
 
 
 def _optional_decimal(value: Any) -> Decimal | None:

@@ -282,6 +282,59 @@ def test_account_api_maps_user_trades_and_funding_history() -> None:
     assert funding[0].qty == Decimal("-0.1")
 
 
+def test_account_history_queries_send_documented_filters_and_pagination() -> None:
+    seen: list[tuple[str, dict[str, str]]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.path, dict(request.url.params)))
+        return httpx.Response(200, json=[])
+
+    api = AccountApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+
+    async def collect() -> None:
+        await api.trades(
+            "BTC-USD",
+            last_id=10,
+            side="sell",
+            start="2025-08-11T00:00:00Z",
+            end="2025-08-12T00:00:00Z",
+            limit=50,
+        )
+        await api.funding_history(
+            "BTC-USD",
+            start="2025-08-11T00:00:00Z",
+            end="2025-08-12T00:00:00Z",
+            last_id=20,
+            limit=25,
+        )
+
+    asyncio.run(collect())
+
+    assert seen == [
+        (
+            "/api/query_trades",
+            {
+                "symbol": "BTC-USD",
+                "last_id": "10",
+                "side": "sell",
+                "start": "2025-08-11T00:00:00Z",
+                "end": "2025-08-12T00:00:00Z",
+                "limit": "50",
+            },
+        ),
+        (
+            "/api/query_funding_history",
+            {
+                "symbol": "BTC-USD",
+                "start": "2025-08-11T00:00:00Z",
+                "end": "2025-08-12T00:00:00Z",
+                "last_id": "20",
+                "limit": "25",
+            },
+        ),
+    ]
+
+
 def test_account_api_maps_documented_funding_rate_snapshots() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/query_funding_rates"

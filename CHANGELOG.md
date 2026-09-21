@@ -19,6 +19,7 @@ All notable changes to this project are documented here.
 - Positive and price-precision validation for `tp_price` and `sl_price`.
 - Typed `RecentTrade` snapshots preserving documented `is_buyer_taker` and `quote_qty` fields.
 - Typed `FundingRate` snapshots for documented funding-rate history fields.
+- Added documented pagination, time-range, and side filters for user trades and funding history.
 
 ### Safety
 
