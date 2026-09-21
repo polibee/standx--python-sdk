@@ -97,67 +97,66 @@ account = await client.account.snapshot()
 positions = await client.positions.list()
 order = await client.orders.create(create_request)
 await client.orders.cancel(order_id, client_order_id=client_order_id)
+
+market_stream = client.streams.market()
+order_stream = client.streams.order_response()
 ```
 
 服务入口只暴露类型化请求和响应，不暴露 REST 原始 JSON。
 
 ## 6. 模块结构
 
-目标包结构：
+目标包结构（现代公共结构）：
 
 ```text
 src/standx_sdk/
 ├── __init__.py
 ├── client.py
 ├── config.py
+├── domain/
+│   ├── __init__.py
+│   ├── markets.py
+│   ├── account.py
+│   ├── orders.py
+│   └── trades.py
+├── streams/
+│   ├── __init__.py
+│   ├── base.py
+│   ├── market.py
+│   └── order_response.py
+├── transport/
+│   ├── __init__.py
+│   ├── http.py
+│   └── websocket.py
 ├── auth/
 │   ├── __init__.py
 │   ├── service.py
-│   ├── models.py
-│   └── signers.py
+│   ├── token.py
+│   └── wallet.py
 ├── signing/
-│   ├── __init__.py
 │   ├── request.py
-│   └── jwt.py
-├── rest/
-│   ├── __init__.py
-│   ├── transport.py
-│   ├── base.py
-│   ├── markets.py
-│   ├── account.py
-│   ├── positions.py
-│   └── orders.py
-├── websocket/
-│   ├── __init__.py
-│   ├── transport.py
-│   ├── connection.py
-│   ├── market_stream.py
-│   └── order_response_stream.py
+│   └── encoding.py
 ├── models/
-│   ├── __init__.py
 │   ├── common.py
 │   ├── market.py
 │   ├── account.py
-│   ├── position.py
-│   └── order.py
+│   ├── order.py
+│   ├── trade.py
+│   └── stream.py
 ├── errors/
 │   ├── __init__.py
 │   ├── codes.py
 │   └── exceptions.py
-├── retry/
-│   ├── __init__.py
-│   └── policy.py
-├── rate_limit/
-│   ├── __init__.py
-│   └── limiter.py
+├── resilience/
+│   ├── retry.py
+│   └── rate_limit.py
 └── testing/
-    ├── __init__.py
-    ├── fake_rest.py
+    ├── fake_http.py
     ├── fake_websocket.py
-    └── vectors/
+    └── fixtures/
 ```
 
-模块职责必须保持单一：`client.py`只负责组合依赖，不能承载 endpoint 逻辑；`transport.py`不能定义订单业务规则；公共 DTO不能依赖 HTTP 客户端实现。
+旧的 `rest/` 和 `websocket/` 实现不保留；新的公共扩展边界只有 `domain/`、`transport/` 和 `streams/`。模块职责必须保持单一：`client.py`只负责组合依赖，`domain/`负责 StandX endpoint，`transport/`负责网络协议，`streams/`负责连接生命周期，公共 DTO 不依赖 HTTP/WebSocket 客户端实现。
 
 ## 7. 认证与签名
 
@@ -179,8 +178,7 @@ class WalletSigner(Protocol):
     chain: Chain
     address: str
 
-    async def sign_login_message(self, message: str) -> str:
-        ...
+    async def sign_login_message(self, message: str) -> str: ...
 
 
 class RequestSigner(Protocol):
@@ -190,8 +188,7 @@ class RequestSigner(Protocol):
         request_id: str,
         timestamp: int,
         payload: str,
-    ) -> str:
-        ...
+    ) -> str: ...
 ```
 
 请求签名消息格式必须为：

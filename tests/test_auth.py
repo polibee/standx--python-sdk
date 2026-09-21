@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from standx_sdk.auth.service import AuthService
-from standx_sdk.auth.signers import WalletSigner
+from standx_sdk.auth.wallet import WalletSigner
 
 
 def test_wallet_signer_protocol_requires_login_message_method() -> None:
@@ -16,10 +16,18 @@ def test_empty_wallet_address_is_rejected() -> None:
 
 
 class FakeAuthTransport:
-    async def post(self, path: str, *, params: dict[str, str], json: dict[str, object]) -> dict[str, object]:
+    async def post(
+        self, path: str, *, params: dict[str, str], json: dict[str, object]
+    ) -> dict[str, object]:
         if path.endswith("prepare-signin"):
             return {"success": True, "signedData": "header.eyJtZXNzYWdlIjoic2lnbiJ9.signature"}
-        return {"token": "jwt-token", "address": "0xabc", "alias": "alice", "chain": "bsc", "perpsAlpha": True}
+        return {
+            "token": "jwt-token",
+            "address": "0xabc",
+            "alias": "alice",
+            "chain": "bsc",
+            "perpsAlpha": True,
+        }
 
 
 class FakeWallet(WalletSigner):

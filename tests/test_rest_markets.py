@@ -3,8 +3,8 @@ from decimal import Decimal
 
 import httpx
 
-from standx_sdk.rest.markets import MarketsApi
-from standx_sdk.rest.transport import RestTransport
+from standx_sdk.domain.markets import MarketsApi
+from standx_sdk.transport.http import HttpTransport
 
 
 def test_query_symbol_info_maps_documented_rules() -> None:
@@ -40,8 +40,8 @@ def test_query_symbol_info_maps_documented_rules() -> None:
             ],
         )
 
-    api = MarketsApi(RestTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+    api = MarketsApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
     rules = asyncio.run(api.symbol_info("BTC-USD"))
 
     assert rules.min_order_qty == Decimal("0.0001")
-    assert rules.depth_ticks == (Decimal("0.01"), Decimal("0.1"), Decimal("1"))
+    assert rules.depth_ticks == (Decimal("0.01"), Decimal("0.1"), Decimal(1))

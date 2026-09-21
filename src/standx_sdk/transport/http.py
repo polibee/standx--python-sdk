@@ -1,22 +1,23 @@
-"""Async HTTP transport for StandX REST endpoints."""
+"""Async HTTP transport for documented StandX REST endpoints."""
 
-from collections.abc import Mapping
-from typing import Any
-
-import httpx
 import json
 import time
 import uuid
-from typing import Protocol
+from collections.abc import Mapping
+from typing import Any, Protocol
+
+import httpx
 
 from ..errors import ErrorCode, StandXError
 
 
 class RequestSigner(Protocol):
-    def sign_request(self, version: str, request_id: str, timestamp: int, payload: str) -> dict[str, str]: ...
+    def sign_request(
+        self, version: str, request_id: str, timestamp: int, payload: str
+    ) -> dict[str, str]: ...
 
 
-class RestTransport:
+class HttpTransport:
     def __init__(
         self,
         base_url: str,
@@ -36,7 +37,7 @@ class RestTransport:
             self._headers["x-session-id"] = session_id
         self._request_signer = request_signer
 
-    async def get(self, path: str, *, params: Mapping[str, object] | None = None) -> Any:
+    async def get(self, path: str, *, params: Mapping[str, Any] | None = None) -> Any:
         response = await self._client.get(path, params=params, headers=self._headers)
         self._raise_for_status(response)
         return response.json()
@@ -47,6 +48,7 @@ class RestTransport:
         *,
         json: Mapping[str, object],
         signed: bool = False,
+        params: Mapping[str, Any] | None = None,
     ) -> Any:
         headers = dict(self._headers)
         if signed:
@@ -56,7 +58,7 @@ class RestTransport:
             request_id = str(uuid.uuid4())
             timestamp = int(time.time() * 1000)
             headers.update(self._request_signer.sign_request("v1", request_id, timestamp, payload))
-        response = await self._client.post(path, json=json, headers=headers)
+        response = await self._client.post(path, json=json, params=params, headers=headers)
         self._raise_for_status(response)
         return response.json()
 
@@ -66,19 +68,15 @@ class RestTransport:
             return
         retryable = response.status_code == 429 or response.status_code >= 500
         code = ErrorCode.RATE_LIMITED if response.status_code == 429 else ErrorCode.PROTOCOL_ERROR
+        error = StandXError(code=code, message=f"HTTP {response.status_code}", retryable=retryable)
         retry_after = response.headers.get("retry-after")
-        error = StandXError(
-            code=code,
-            message=f"HTTP {response.status_code}",
-            retryable=retryable,
-        )
         if retry_after is not None:
             error.retry_after_seconds = float(retry_after)
         raise error
 
+    async def aclose(self) -> None:
+        await self._client.aclose()
+
 
 def json_module_dumps(value: Mapping[str, object]) -> str:
     return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
-
-    async def aclose(self) -> None:
-        await self._client.aclose()

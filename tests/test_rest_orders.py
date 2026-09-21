@@ -4,13 +4,15 @@ from decimal import Decimal
 
 import httpx
 
+from standx_sdk.domain.orders import OrdersApi
 from standx_sdk.models.order import CreateOrderRequest, OrderSide, OrderType, TimeInForce
-from standx_sdk.rest.orders import OrdersApi
-from standx_sdk.rest.transport import RestTransport
+from standx_sdk.transport.http import HttpTransport
 
 
 class FakeSigner:
-    def sign_request(self, version: str, request_id: str, timestamp: int, payload: str) -> dict[str, str]:
+    def sign_request(
+        self, version: str, request_id: str, timestamp: int, payload: str
+    ) -> dict[str, str]:
         return {
             "x-request-sign-version": version,
             "x-request-id": request_id,
@@ -28,7 +30,9 @@ def test_new_order_uses_documented_path_and_decimal_strings() -> None:
         seen["body"] = json.loads(request.content)
         return httpx.Response(200, json={"code": 0, "message": "success", "request_id": "r1"})
 
-    transport = RestTransport("https://perps.standx.com", httpx.MockTransport(handler), request_signer=FakeSigner())
+    transport = HttpTransport(
+        "https://perps.standx.com", httpx.MockTransport(handler), request_signer=FakeSigner()
+    )
     api = OrdersApi(transport)
     result = asyncio.run(
         api.create(
@@ -37,7 +41,7 @@ def test_new_order_uses_documented_path_and_decimal_strings() -> None:
                 side=OrderSide.BUY,
                 order_type=OrderType.LIMIT,
                 qty=Decimal("0.1"),
-                price=Decimal("50000"),
+                price=Decimal(50000),
                 time_in_force=TimeInForce.GTC,
                 reduce_only=False,
             )
@@ -61,7 +65,13 @@ def test_new_order_uses_documented_path_and_decimal_strings() -> None:
 
 
 def test_cancel_requires_order_id_or_client_order_id() -> None:
-    api = OrdersApi(RestTransport("https://perps.standx.com", httpx.MockTransport(lambda _: httpx.Response(200))))
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(lambda _: httpx.Response(200)),
+            request_signer=FakeSigner(),
+        )
+    )
 
     try:
         asyncio.run(api.cancel())
@@ -79,7 +89,11 @@ def test_cancel_uses_documented_payload() -> None:
         seen["body"] = json.loads(request.content)
         return httpx.Response(200, json={"code": 0, "message": "success", "request_id": "r2"})
 
-    api = OrdersApi(RestTransport("https://perps.standx.com", httpx.MockTransport(handler), request_signer=FakeSigner()))
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com", httpx.MockTransport(handler), request_signer=FakeSigner()
+        )
+    )
     result = asyncio.run(api.cancel(cl_ord_id="client-1"))
 
     assert result.request_id == "r2"

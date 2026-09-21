@@ -1,10 +1,9 @@
-"""Documented StandX order endpoints."""
-
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any, cast
 
 from ..models.order import CreateOrderRequest
-from .transport import RestTransport
+from ..transport.http import HttpTransport
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,7 +18,7 @@ def _decimal(value: Decimal | None) -> str | None:
 
 
 class OrdersApi:
-    def __init__(self, transport: RestTransport) -> None:
+    def __init__(self, transport: HttpTransport) -> None:
         self._transport = transport
 
     async def create(self, request: CreateOrderRequest) -> SubmissionResult:
@@ -40,30 +39,22 @@ class OrdersApi:
             "sl_price": _decimal(request.sl_price),
         }
         body.update({key: value for key, value in optional.items() if value is not None})
-        result = await self._transport.post("/api/new_order", json=body, signed=True)
-        return SubmissionResult(int(result["code"]), str(result["message"]), str(result["request_id"]))
+        return self._result(await self._transport.post("/api/new_order", json=body, signed=True))
 
     async def cancel(
-        self,
-        *,
-        order_id: int | None = None,
-        cl_ord_id: str | None = None,
+        self, *, order_id: int | None = None, cl_ord_id: str | None = None
     ) -> SubmissionResult:
         if order_id is None and cl_ord_id is None:
             raise ValueError("cancel requires order_id or cl_ord_id")
-        body: dict[str, object] = {}
-        if order_id is not None:
-            body["order_id"] = order_id
-        if cl_ord_id is not None:
-            body["cl_ord_id"] = cl_ord_id
-        result = await self._transport.post("/api/cancel_order", json=body, signed=True)
-        return SubmissionResult(int(result["code"]), str(result["message"]), str(result["request_id"]))
+        body = {
+            key: value
+            for key, value in {"order_id": order_id, "cl_ord_id": cl_ord_id}.items()
+            if value is not None
+        }
+        return self._result(await self._transport.post("/api/cancel_order", json=body, signed=True))
 
     async def cancel_many(
-        self,
-        *,
-        order_ids: list[int] | None = None,
-        cl_ord_ids: list[str] | None = None,
+        self, *, order_ids: list[int] | None = None, cl_ord_ids: list[str] | None = None
     ) -> SubmissionResult:
         if not order_ids and not cl_ord_ids:
             raise ValueError("cancel_many requires order_ids or cl_ord_ids")
@@ -72,5 +63,14 @@ class OrdersApi:
             body["order_id_list"] = order_ids
         if cl_ord_ids:
             body["cl_ord_id_list"] = cl_ord_ids
-        result = await self._transport.post("/api/cancel_orders", json=body, signed=True)
-        return SubmissionResult(int(result["code"]), str(result["message"]), str(result["request_id"]))
+        return self._result(
+            await self._transport.post("/api/cancel_orders", json=body, signed=True)
+        )
+
+    @staticmethod
+    def _result(value: dict[str, object]) -> SubmissionResult:
+        typed = cast(dict[str, Any], value)
+        return SubmissionResult(int(typed["code"]), str(typed["message"]), str(typed["request_id"]))
+
+
+__all__ = ["OrdersApi", "SubmissionResult"]

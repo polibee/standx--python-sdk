@@ -18,7 +18,7 @@ class Ed25519RequestSigner:
         timestamp: int,
         payload: str,
     ) -> dict[str, str]:
-        message = f"{version},{request_id},{timestamp},{payload}".encode("utf-8")
+        message = f"{version},{request_id},{timestamp},{payload}".encode()
         signature = self._key.sign(message).signature
         return {
             "x-request-sign-version": version,

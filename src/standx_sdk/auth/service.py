@@ -2,12 +2,12 @@
 
 import base64
 import json
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from nacl.signing import SigningKey
 
-from .models import LoginResponse
-from .signers import WalletSigner
+from .token import LoginResponse
+from .wallet import WalletSigner
 
 
 class AuthTransport(Protocol):
@@ -36,18 +36,20 @@ def _jwt_payload(token: str) -> dict[str, Any]:
     try:
         encoded = token.split(".")[1]
         encoded += "=" * (-len(encoded) % 4)
-        return json.loads(base64.urlsafe_b64decode(encoded).decode("utf-8"))
+        return cast(dict[str, Any], json.loads(base64.urlsafe_b64decode(encoded).decode("utf-8")))
     except (IndexError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("signedData is not a valid JWT") from exc
 
 
 class AuthService:
-    def __init__(self, transport: AuthTransport, signer: WalletSigner) -> None:
+    def __init__(self, transport: AuthTransport, signer: WalletSigner | None = None) -> None:
         self._transport = transport
         self._signer = signer
         self.token: str | None = None
 
     async def login(self, expires_seconds: int = 604800) -> LoginResponse:
+        if self._signer is None:
+            raise ValueError("a wallet signer is required for login")
         temporary_key = SigningKey.generate()
         request_id = _base58_encode(bytes(temporary_key.verify_key))
         prepared = await self._transport.post(
@@ -59,16 +61,20 @@ class AuthService:
             raise ValueError("failed to prepare sign-in")
         signed_data = prepared.get("signedData")
         if not isinstance(signed_data, str):
-            raise ValueError("prepare-signin did not return signedData")
+            raise TypeError("prepare-signin did not return signedData")
         payload = _jwt_payload(signed_data)
         message = payload.get("message")
         if not isinstance(message, str):
-            raise ValueError("signedData payload did not contain message")
+            raise TypeError("signedData payload did not contain message")
         signature = await self._signer.sign_login_message(message)
         response = await self._transport.post(
             "/v1/offchain/login",
             params={"chain": self._signer.chain},
-            json={"signature": signature, "signedData": signed_data, "expiresSeconds": expires_seconds},
+            json={
+                "signature": signature,
+                "signedData": signed_data,
+                "expiresSeconds": expires_seconds,
+            },
         )
         result = LoginResponse(
             token=str(response["token"]),

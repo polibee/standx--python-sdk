@@ -1,14 +1,12 @@
-"""Documented public market endpoints."""
-
 from decimal import Decimal
 from typing import Any
 
 from ..models.market import InstrumentRules
-from .transport import RestTransport
+from ..transport.http import HttpTransport
 
 
 class MarketsApi:
-    def __init__(self, transport: RestTransport) -> None:
+    def __init__(self, transport: HttpTransport) -> None:
         self._transport = transport
 
     async def symbol_info(self, symbol: str) -> InstrumentRules:
@@ -36,3 +34,6 @@ class MarketsApi:
             taker_fee=Decimal(str(value["taker_fee"])),
             depth_ticks=tuple(Decimal(item) for item in str(value["depth_ticks"]).split(",")),
         )
+
+
+__all__ = ["MarketsApi"]
