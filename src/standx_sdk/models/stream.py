@@ -96,10 +96,13 @@ class OrderResponseEvent:
 class PriceEvent:
     symbol: str
     last_price: Decimal
+    base: str | None = None
+    quote: str | None = None
     mark_price: Decimal | None = None
     index_price: Decimal | None = None
     mid_price: Decimal | None = None
     spread: tuple[Decimal, Decimal] | None = None
+    time: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

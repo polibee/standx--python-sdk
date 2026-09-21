@@ -126,14 +126,20 @@ def test_market_price_event_maps_documented_last_price() -> None:
             "channel": "price",
             "data": {
                 "symbol": "BTC-USD",
+                "base": "BTC",
+                "quote": "DUSD",
                 "last_price": "121897.95",
                 "mark_price": "121897.56",
+                "time": "2025-08-11T07:23:50.923602474Z",
             },
         }
     )
     assert isinstance(price, PriceEvent)
     assert price.last_price == Decimal("121897.95")
     assert price.mark_price == Decimal("121897.56")
+    assert price.base == "BTC"
+    assert price.quote == "DUSD"
+    assert price.time == "2025-08-11T07:23:50.923602474Z"
 
 
 def test_pending_order_response_can_be_recovered_from_rest() -> None:

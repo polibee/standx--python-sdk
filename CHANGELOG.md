@@ -26,6 +26,7 @@ All notable changes to this project are documented here.
 - Expanded `InstrumentRules` with documented enabled and lifecycle timestamp metadata.
 - Expanded Market Stream user order events with documented order snapshot fields.
 - Expanded Market Stream position and balance events with documented account metadata.
+- Expanded Market Stream price events with documented base, quote, and timestamp fields.
 
 ### Safety
 

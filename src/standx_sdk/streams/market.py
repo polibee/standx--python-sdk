@@ -245,12 +245,15 @@ class MarketStream(StreamBase):
             return PriceEvent(
                 symbol=str(data["symbol"]),
                 last_price=_decimal(data["last_price"]),
+                base=_optional_str(data.get("base")),
+                quote=_optional_str(data.get("quote")),
                 mark_price=_optional_decimal(data.get("mark_price")),
                 index_price=_optional_decimal(data.get("index_price")),
                 mid_price=_optional_decimal(data.get("mid_price")),
                 spread=None
                 if spread is None
                 else (_decimal(spread[0]), _decimal(spread[1])),
+                time=_optional_str(data.get("time")),
             )
         if channel == "depth_book":
             return DepthBookEvent(
