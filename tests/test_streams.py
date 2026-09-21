@@ -368,6 +368,16 @@ def test_order_response_rejects_response_from_different_session() -> None:
     assert caught.value.request_id == "request-1"
 
 
+def test_order_response_stream_rejects_non_numeric_code_as_protocol_error() -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+
+    with pytest.raises(StandXError) as caught:
+        stream.decode_response({"request_id": "request-1", "code": "invalid"})
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert stream.pending_request_ids == set()
+
+
 def test_stream_receive_wraps_invalid_json_as_protocol_error() -> None:
     class InvalidMessageTransport(FakeTransport):
         async def receive(self) -> str:
