@@ -155,6 +155,35 @@ def test_order_response_recovery_keeps_pending_when_rest_has_no_snapshot() -> No
     assert stream.pending_request_ids == {"request-1"}
 
 
+def test_order_state_reconciler_restores_cache_from_open_orders() -> None:
+    order = Order(
+        id=8,
+        cl_ord_id="client-2",
+        symbol="BTC-USD",
+        side="sell",
+        order_type="limit",
+        qty=Decimal(1),
+        fill_qty=Decimal(0),
+        fill_avg_price=Decimal(0),
+        status="open",
+        time_in_force="gtc",
+        reduce_only=False,
+    )
+    reconciler = OrderStateReconciler(lambda _: _missing_order())
+
+    async def query_open_orders() -> list[Order]:
+        return [order]
+
+    restored = asyncio.run(reconciler.restore_open_orders(query_open_orders))
+
+    assert restored == [order]
+    assert reconciler.get("client-2") is order
+
+
+async def _missing_order() -> Order | None:
+    return None
+
+
 def test_fake_websocket_server_round_trips_stream_messages() -> None:
     server = FakeWebSocketServer()
     stream = MarketStream(

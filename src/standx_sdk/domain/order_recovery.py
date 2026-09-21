@@ -40,5 +40,16 @@ class OrderStateReconciler:
                 typed.append(value)
         return typed
 
+    async def restore_open_orders(
+        self, query_open_orders: Callable[[], Awaitable[list[Order]]]
+    ) -> list[Order]:
+        """Rebuild the cache from REST after process restart."""
+
+        restored = await query_open_orders()
+        self._orders = {
+            order.cl_ord_id: order for order in restored if order.cl_ord_id is not None
+        }
+        return restored
+
 
 __all__ = ["OrderStateReconciler"]
