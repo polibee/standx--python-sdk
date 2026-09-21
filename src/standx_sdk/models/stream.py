@@ -41,8 +41,13 @@ class PositionEvent:
     symbol: str | None = None
     entry_price: Decimal | None = None
     entry_value: Decimal | None = None
+    created_at: str | None = None
+    initial_margin: Decimal | None = None
+    margin_asset: str | None = None
     margin_mode: str | None = None
+    realized_pnl: Decimal | None = None
     status: str | None = None
+    user: str | None = None
     updated_at: str | None = None
 
 
@@ -53,7 +58,19 @@ class BalanceEvent:
     free: Decimal | None = None
     locked: Decimal | None = None
     occupied: Decimal | None = None
+    account_type: str | None = None
+    created_at: str | None = None
+    id: str | None = None
+    inbound: Decimal | None = None
+    is_enabled: bool | None = None
+    kind: str | None = None
+    last_tx: str | None = None
+    last_tx_updated_at: int | None = None
+    outbound: Decimal | None = None
+    ref_id: int | None = None
     updated_at: str | None = None
+    version: int | None = None
+    wallet_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

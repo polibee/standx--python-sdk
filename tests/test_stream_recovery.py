@@ -67,8 +67,37 @@ def test_market_user_channels_map_to_typed_events() -> None:
             },
         }
     )
-    position = stream.decode({"channel": "position", "data": {"id": 2, "qty": "0.5", "leverage": "10"}})
-    balance = stream.decode({"channel": "balance", "data": {"token": "DUSD", "total": "100.0"}})
+    position = stream.decode(
+        {
+            "channel": "position",
+            "data": {
+                "id": 2,
+                "qty": "0.5",
+                "leverage": "10",
+                "created_at": "2025-08-10T09:05:50Z",
+                "initial_margin": "100",
+                "margin_asset": "DUSD",
+                "realized_pnl": "2.5",
+                "user": "bsc_0x...",
+            },
+        }
+    )
+    balance = stream.decode(
+        {
+            "channel": "balance",
+            "data": {
+                "token": "DUSD",
+                "total": "100.0",
+                "account_type": "perps",
+                "id": "bsc_0x...",
+                "is_enabled": True,
+                "last_tx_updated_at": 0,
+                "ref_id": 0,
+                "version": 0,
+                "wallet_id": "bsc_0x...",
+            },
+        }
+    )
 
     assert isinstance(order, UserOrderEvent)
     assert order.status == "filled"
@@ -79,8 +108,15 @@ def test_market_user_channels_map_to_typed_events() -> None:
     assert order.source == "user"
     assert isinstance(position, PositionEvent)
     assert position.qty == Decimal("0.5")
+    assert position.initial_margin == Decimal(100)
+    assert position.margin_asset == "DUSD"
+    assert position.realized_pnl == Decimal("2.5")
+    assert position.user == "bsc_0x..."
     assert isinstance(balance, BalanceEvent)
     assert balance.total == Decimal("100.0")
+    assert balance.account_type == "perps"
+    assert balance.is_enabled is True
+    assert balance.wallet_id == "bsc_0x..."
 
 
 def test_market_price_event_maps_documented_last_price() -> None:

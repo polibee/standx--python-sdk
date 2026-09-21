@@ -200,8 +200,13 @@ class MarketStream(StreamBase):
                 symbol=_optional_str(data.get("symbol")),
                 entry_price=_optional_decimal(data.get("entry_price")),
                 entry_value=_optional_decimal(data.get("entry_value")),
+                created_at=_optional_str(data.get("created_at")),
+                initial_margin=_optional_decimal(data.get("initial_margin")),
+                margin_asset=_optional_str(data.get("margin_asset")),
                 margin_mode=_optional_str(data.get("margin_mode")),
+                realized_pnl=_optional_decimal(data.get("realized_pnl")),
                 status=_optional_str(data.get("status")),
+                user=_optional_str(data.get("user")),
                 updated_at=_optional_str(data.get("updated_at")),
             )
         if channel == "balance":
@@ -211,7 +216,19 @@ class MarketStream(StreamBase):
                 free=_optional_decimal(data.get("free")),
                 locked=_optional_decimal(data.get("locked")),
                 occupied=_optional_decimal(data.get("occupied")),
+                account_type=_optional_str(data.get("account_type")),
+                created_at=_optional_str(data.get("created_at")),
+                id=_optional_str(data.get("id")),
+                inbound=_optional_decimal(data.get("inbound")),
+                is_enabled=data.get("is_enabled") if isinstance(data.get("is_enabled"), bool) else None,
+                kind=_optional_str(data.get("kind")),
+                last_tx=_optional_str(data.get("last_tx")),
+                last_tx_updated_at=_optional_int(data.get("last_tx_updated_at")),
+                outbound=_optional_decimal(data.get("outbound")),
+                ref_id=_optional_int(data.get("ref_id")),
                 updated_at=_optional_str(data.get("updated_at")),
+                version=_optional_int(data.get("version")),
+                wallet_id=_optional_str(data.get("wallet_id")),
             )
         if channel == "trade":
             return UserTradeEvent(
