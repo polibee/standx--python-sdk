@@ -1,7 +1,14 @@
 """Typed StandX protocol models."""
 
 from .account import BalanceSnapshot, PositionSnapshot
-from .market import InstrumentRules
+from .market import (
+    DepthBook,
+    InstrumentRules,
+    MarketOverview,
+    MarketOverviewSymbol,
+    SymbolMarket,
+    SymbolPrice,
+)
 from .order import CreateOrderRequest, Order, OrderSide, OrderStatus, OrderType, TimeInForce
 from .stream import (
     BalanceEvent,
@@ -12,13 +19,18 @@ from .stream import (
     UserOrderEvent,
     UserTradeEvent,
 )
+from .trade import FundingPayment, UserTrade
 
 __all__ = [
     "BalanceEvent",
     "BalanceSnapshot",
     "CreateOrderRequest",
+    "DepthBook",
     "DepthBookEvent",
+    "FundingPayment",
     "InstrumentRules",
+    "MarketOverview",
+    "MarketOverviewSymbol",
     "Order",
     "OrderSide",
     "OrderStatus",
@@ -27,7 +39,10 @@ __all__ = [
     "PositionSnapshot",
     "PriceEvent",
     "PublicTradeEvent",
+    "SymbolMarket",
+    "SymbolPrice",
     "TimeInForce",
     "UserOrderEvent",
+    "UserTrade",
     "UserTradeEvent",
 ]

@@ -226,7 +226,9 @@ RestTransport
     └── OrdersApi
 ```
 
-账户和订单查询使用类型化 DTO：`BalanceSnapshot`、`PositionSnapshot` 和 `Order`。这些 DTO 对文档中的 decimal 字段统一使用 `Decimal`，订单 `status` 保留 StandX 原始字符串（包括示例中的 `new`），不会把服务端状态擅自改写为其他交易所状态。
+账户、市场和订单查询使用类型化 DTO：`BalanceSnapshot`、`PositionSnapshot`、`MarketOverview`、`SymbolMarket`、`SymbolPrice`、`DepthBook` 和 `Order`。这些 DTO 对文档中的 decimal 字段统一使用 `Decimal`，订单 `status` 保留 StandX 原始字符串（包括示例中的 `new`），不会把服务端状态擅自改写为其他交易所状态。
+
+`MarketsApi.overview()`、`symbol_market()`、`symbol_price()`和`depth_book()`分别对应 StandX 的市场概览、标的行情、标的价格和深度接口；深度 asks/bids 保持服务端顺序，不在 SDK 内隐式排序。`AccountApi.trade_snapshots()`和`funding_history()`分别映射用户成交与资金历史，手续费、成交价值、PnL 和资金费用均按文档使用 `Decimal`。
 
 ### 8.1 Transport 职责
 

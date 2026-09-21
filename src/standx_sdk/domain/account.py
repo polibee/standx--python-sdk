@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 from ..models.account import BalanceSnapshot, PositionSnapshot
+from ..models.trade import FundingPayment, UserTrade
 from ..transport.http import HttpTransport
 
 
@@ -90,7 +91,22 @@ class AccountApi:
 
     async def trades(self, symbol: str | None = None) -> list[dict[str, Any]]:
         params = {"symbol": symbol} if symbol else None
-        return cast(list[dict[str, Any]], _decimalize(await self._transport.get("/api/query_trades", params=params)))
+        response = _decimalize(await self._transport.get("/api/query_trades", params=params))
+        if isinstance(response, dict):
+            return cast(list[dict[str, Any]], response.get("result", []))
+        return cast(list[dict[str, Any]], response)
+
+    async def trade_snapshots(self, symbol: str | None = None) -> list[UserTrade]:
+        values = await self.trades(symbol)
+        return [_trade_from(value) for value in values]
+
+    async def funding_history(self, symbol: str | None = None) -> list[FundingPayment]:
+        params = {"symbol": symbol} if symbol else None
+        response = _decimalize(
+            await self._transport.get("/api/query_funding_history", params=params)
+        )
+        values = response.get("result", response) if isinstance(response, dict) else response
+        return [_funding_from(value) for value in values]
 
     async def funding_rates(
         self, symbol: str, start_time: int, end_time: int
@@ -118,3 +134,33 @@ def _optional_decimal(value: Any) -> Decimal | None:
 
 def _optional_string(value: Any) -> str | None:
     return value if isinstance(value, str) else None
+
+
+def _trade_from(value: dict[str, Any]) -> UserTrade:
+    return UserTrade(
+        id=int(value["id"]),
+        order_id=int(value["order_id"]),
+        symbol=str(value["symbol"]),
+        side=str(value["side"]),
+        price=Decimal(str(value["price"])),
+        qty=Decimal(str(value["qty"])),
+        value=Decimal(str(value["value"])),
+        fee_asset=str(value["fee_asset"]),
+        fee_qty=Decimal(str(value["fee_qty"])),
+        pnl=Decimal(str(value["pnl"])),
+        created_at=_optional_string(value.get("created_at")),
+        updated_at=_optional_string(value.get("updated_at")),
+    )
+
+
+def _funding_from(value: dict[str, Any]) -> FundingPayment:
+    return FundingPayment(
+        id=int(value["id"]),
+        asset=str(value["asset"]),
+        symbol=str(value["symbol"]),
+        qty=Decimal(str(value["qty"])),
+        txn_type=str(value["txn_type"]),
+        transact_time=str(value["transact_time"]),
+        created_at=_optional_string(value.get("created_at")),
+        updated_at=_optional_string(value.get("updated_at")),
+    )

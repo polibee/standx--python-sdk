@@ -4,6 +4,7 @@ from decimal import Decimal
 import httpx
 
 from standx_sdk.domain.markets import MarketsApi
+from standx_sdk.models.market import DepthBook, MarketOverview, SymbolMarket, SymbolPrice
 from standx_sdk.transport.http import HttpTransport
 
 
@@ -45,3 +46,64 @@ def test_query_symbol_info_maps_documented_rules() -> None:
 
     assert rules.min_order_qty == Decimal("0.0001")
     assert rules.depth_ticks == (Decimal("0.01"), Decimal("0.1"), Decimal(1))
+
+
+def test_market_api_maps_documented_market_and_depth_dtos() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/query_market_overview":
+            return httpx.Response(
+                200,
+                json={
+                    "summary": {
+                        "open_interest_notional": "100",
+                        "symbol_count": 1,
+                        "volume_quote_24h": "200",
+                    },
+                    "symbols": [
+                        {
+                            "base": "BTC",
+                            "quote": "DUSD",
+                            "symbol": "BTC-USD",
+                            "last_price": "50000",
+                            "mark_price": "50001",
+                            "funding_rate": "0.0001",
+                            "open_interest": "1",
+                            "open_interest_notional": "50000",
+                            "price_change_pct": 1.2,
+                            "volume_24h": "2",
+                            "volume_quote_24h": "100000",
+                            "time": "2026-01-01T00:00:00Z",
+                        }
+                    ],
+                },
+            )
+        if request.url.path == "/api/query_symbol_market":
+            return httpx.Response(
+                200,
+                json={"symbol": "BTC-USD", "last_price": "50000", "funding_rate": "0.1"},
+            )
+        if request.url.path == "/api/query_symbol_price":
+            return httpx.Response(
+                200,
+                json={"symbol": "BTC-USD", "last_price": "50000", "spread_bid": "49999"},
+            )
+        return httpx.Response(
+            200,
+            json={"symbol": "BTC-USD", "asks": [["50001", "1"]], "bids": [["49999", "2"]]},
+        )
+
+    api = MarketsApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+
+    async def collect() -> tuple[MarketOverview, SymbolMarket, SymbolPrice, DepthBook]:
+        return await asyncio.gather(
+            api.overview(),
+            api.symbol_market("BTC-USD"),
+            api.symbol_price("BTC-USD"),
+            api.depth_book("BTC-USD"),
+        )
+
+    overview, market, price, book = asyncio.run(collect())
+    assert overview.symbols[0].last_price == Decimal(50000)
+    assert market.funding_rate == Decimal("0.1")
+    assert price.spread_bid == Decimal(49999)
+    assert book.asks == ((Decimal(50001), Decimal(1)),)

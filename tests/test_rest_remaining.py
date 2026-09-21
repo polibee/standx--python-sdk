@@ -10,6 +10,7 @@ from standx_sdk.domain.orders import OrdersApi
 from standx_sdk.errors import ErrorCode, StandXError
 from standx_sdk.models.account import BalanceSnapshot, PositionSnapshot
 from standx_sdk.models.order import Order
+from standx_sdk.models.trade import FundingPayment, UserTrade
 from standx_sdk.transport.http import HttpTransport
 
 
@@ -193,6 +194,56 @@ def test_orders_api_queries_typed_order_snapshots() -> None:
     assert isinstance(order, Order)
     assert order.id == 101
     assert order.qty == Decimal("0.1")
+
+
+def test_account_api_maps_user_trades_and_funding_history() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/query_trades":
+            return httpx.Response(
+                200,
+                json={
+                    "result": [
+                        {
+                            "id": 7,
+                            "order_id": 101,
+                            "symbol": "BTC-USD",
+                            "side": "sell",
+                            "price": "50000",
+                            "qty": "0.1",
+                            "value": "5000",
+                            "fee_asset": "DUSD",
+                            "fee_qty": "2",
+                            "pnl": "1",
+                        }
+                    ]
+                },
+            )
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "id": 8,
+                    "asset": "DUSD",
+                    "symbol": "BTC-USD",
+                    "qty": "-0.1",
+                    "txn_type": "funding",
+                    "transact_time": "2026-01-01T00:00:00Z",
+                }
+            ],
+        )
+
+    api = AccountApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+    trades, funding = asyncio.run(
+        _collect_trade_history(api)
+    )
+    assert isinstance(trades[0], UserTrade)
+    assert trades[0].fee_qty == Decimal(2)
+    assert isinstance(funding[0], FundingPayment)
+    assert funding[0].qty == Decimal("-0.1")
+
+
+async def _collect_trade_history(api: AccountApi) -> tuple[list[UserTrade], list[FundingPayment]]:
+    return await asyncio.gather(api.trade_snapshots("BTC-USD"), api.funding_history("BTC-USD"))
 
 
 def test_rate_limit_response_maps_to_retryable_error() -> None:
