@@ -81,12 +81,15 @@ client = StandXClient(
 `ClientConfig`至少包含：
 
 - `base_url`；
+- `auth_base_url`、`market_stream_url`和`order_response_url`；
 - `environment`；
 - 请求超时配置；
 - 重试策略配置；
 - 限流配置；
 - 可选的 `impersonated_vault_id`；
 - 可注入的 HTTP/WebSocket transport。
+
+`StandXClient`接受可选的 `http_transport`，所有 REST domain service 共享同一个实例；WebSocket endpoint 从 `ClientConfig`读取，不能在 facade 内硬编码。这样 Fake HTTP/WebSocket transport 可以在离线测试和 PAPER 环境中替换真实网络实现。
 
 ### 5.2 服务入口
 

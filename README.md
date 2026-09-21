@@ -41,6 +41,8 @@ price_event = await market.receive()
 await market.close_async()
 ```
 
+默认配置使用 StandX 文档中的 REST 和两个 WebSocket endpoint。离线测试可注入自定义 `HttpTransport`，也可以通过 `ClientConfig` 覆盖 endpoint；SDK 不会在测试中访问真实账户。
+
 `new_order` and `cancel_order` responses indicate submission/acceptance, not
 final matching. Use `client.streams.order_response()` with a shared
 `session_id` to correlate asynchronous order responses.

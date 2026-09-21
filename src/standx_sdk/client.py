@@ -16,17 +16,24 @@ class _Streams:
         self._config = config
 
     def market(self) -> MarketStream:
-        return MarketStream("wss://perps.standx.com/ws-stream/v1")
+        return MarketStream(self._config.market_stream_url)
 
     def order_response(self, *, session_id: str = "sdk-session") -> OrderResponseStream:
-        return OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id=session_id)
+        return OrderResponseStream(self._config.order_response_url, session_id=session_id)
 
 
 class StandXClient:
-    def __init__(self, config: ClientConfig, signer: WalletSigner | None = None) -> None:
+    def __init__(
+        self,
+        config: ClientConfig,
+        signer: WalletSigner | None = None,
+        *,
+        http_transport: HttpTransport | None = None,
+    ) -> None:
         self.config = config
-        transport = HttpTransport(config.base_url)
-        self.auth = AuthService(HttpTransport("https://api.standx.com"), signer)
+        transport = http_transport or HttpTransport(config.base_url)
+        self.http_transport = transport
+        self.auth = AuthService(HttpTransport(config.auth_base_url), signer)
         self.markets = MarketsApi(transport)
         self.account = AccountApi(transport)
         self.orders = OrdersApi(transport)
