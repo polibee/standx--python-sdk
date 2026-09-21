@@ -2,6 +2,8 @@ from decimal import Decimal
 from typing import Any, cast
 
 from ..models.account import BalanceSnapshot, PositionSnapshot
+from ..models.account_config import ConfigChangeResult, PositionConfig
+from ..models.order import MarginMode
 from ..models.trade import FundingPayment, UserTrade
 from ..transport.http import HttpTransport
 
@@ -73,12 +75,23 @@ class AccountApi:
             await self._transport.get("/api/query_position_config", params={"symbol": symbol})
         ))
 
+    async def position_config_snapshot(self, symbol: str) -> PositionConfig:
+        value = await self.position_config(symbol)
+        return PositionConfig(
+            symbol=str(value["symbol"]),
+            leverage=int(value["leverage"]),
+            margin_mode=MarginMode(str(value["margin_mode"])),
+        )
+
     async def change_leverage(self, symbol: str, leverage: int) -> dict[str, Any]:
         if leverage <= 0:
             raise ValueError("leverage must be positive")
         return cast(dict[str, Any], await self._transport.post(
             "/api/change_leverage", json={"symbol": symbol, "leverage": leverage}, signed=True
         ))
+
+    async def change_leverage_config(self, symbol: str, leverage: int) -> ConfigChangeResult:
+        return _config_change(await self.change_leverage(symbol, leverage))
 
     async def change_margin_mode(self, symbol: str, margin_mode: str) -> dict[str, Any]:
         if margin_mode not in {"cross", "isolated"}:
@@ -88,6 +101,11 @@ class AccountApi:
             json={"symbol": symbol, "margin_mode": margin_mode},
             signed=True,
         ))
+
+    async def change_margin_mode_config(
+        self, symbol: str, margin_mode: MarginMode
+    ) -> ConfigChangeResult:
+        return _config_change(await self.change_margin_mode(symbol, margin_mode.value))
 
     async def trades(self, symbol: str | None = None) -> list[dict[str, Any]]:
         params = {"symbol": symbol} if symbol else None
@@ -163,4 +181,12 @@ def _funding_from(value: dict[str, Any]) -> FundingPayment:
         transact_time=str(value["transact_time"]),
         created_at=_optional_string(value.get("created_at")),
         updated_at=_optional_string(value.get("updated_at")),
+    )
+
+
+def _config_change(value: dict[str, Any]) -> ConfigChangeResult:
+    return ConfigChangeResult(
+        code=int(value["code"]),
+        message=str(value["message"]),
+        request_id=str(value["request_id"]),
     )

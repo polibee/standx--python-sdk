@@ -9,7 +9,7 @@ from standx_sdk.domain.account import AccountApi
 from standx_sdk.domain.orders import OrdersApi
 from standx_sdk.errors import ErrorCode, StandXError
 from standx_sdk.models.account import BalanceSnapshot, PositionSnapshot
-from standx_sdk.models.order import Order
+from standx_sdk.models.order import MarginMode, Order
 from standx_sdk.models.trade import FundingPayment, UserTrade
 from standx_sdk.resilience.rate_limit import CreditRateLimiter
 from standx_sdk.transport.http import HttpTransport
@@ -123,6 +123,45 @@ def test_account_api_maps_balance_and_position_endpoints() -> None:
     assert balance["balance"] == Decimal("10.5")
     assert positions == []
     assert paths == ["/api/query_balance", "/api/query_positions"]
+
+
+def test_account_api_maps_position_config_and_margin_changes() -> None:
+    seen: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(200, json={"symbol": "BTC-USD", "leverage": 10, "margin_mode": "cross"})
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json={"code": 0, "message": "success", "request_id": "r"})
+
+    api = AccountApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(handler),
+            request_signer=FakeSigner(),
+        )
+    )
+    config, leverage, margin = asyncio.run(
+        _collect_position_config(api)
+    )
+
+    assert config.symbol == "BTC-USD"
+    assert config.leverage == 10
+    assert config.margin_mode is MarginMode.CROSS
+    assert leverage.request_id == "r"
+    assert margin.request_id == "r"
+    assert seen == [
+        {"symbol": "BTC-USD", "leverage": 15},
+        {"symbol": "BTC-USD", "margin_mode": "isolated"},
+    ]
+
+
+async def _collect_position_config(api: AccountApi) -> tuple[object, object, object]:
+    return await asyncio.gather(
+        api.position_config_snapshot("BTC-USD"),
+        api.change_leverage_config("BTC-USD", 15),
+        api.change_margin_mode_config("BTC-USD", MarginMode.ISOLATED),
+    )
 
 
 def test_account_api_returns_documented_typed_snapshots() -> None:

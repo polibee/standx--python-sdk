@@ -327,10 +327,17 @@ class MarginMode(str, Enum):
 
 
 @dataclass(frozen=True)
-class LeverageConfig:
+class PositionConfig:
     symbol: str
-    leverage: Decimal
+    leverage: int
     margin_mode: MarginMode
+
+
+@dataclass(frozen=True)
+class ConfigChangeResult:
+    code: int
+    message: str
+    request_id: str
 ```
 
 SDK 必须区分：
@@ -341,6 +348,13 @@ SDK 必须区分：
 - 设置杠杆后再创建订单；
 - 服务端拒绝设置杠杆；
 - 设置成功但本地缓存尚未刷新。
+
+当前实现提供 `AccountApi.position_config_snapshot(symbol)` 返回
+`PositionConfig`，以及 `change_leverage_config(symbol, leverage)` 和
+`change_margin_mode_config(symbol, margin_mode)` 返回 `ConfigChangeResult`。
+两个变更方法只表示服务端接受了配置请求，并不代表已有持仓或订单已经改变；
+调用方应重新查询 `position_config_snapshot`确认最终账户配置。配置变更是有副作用
+的 POST，SDK 默认不自动重试，也不会在创建订单时静默修改账户配置。
 
 设置杠杆属于有外部副作用的操作，默认不自动重试。创建订单前，如果请求指定的杠杆、保证金模式或持仓模式与当前账户状态不一致，SDK 必须拒绝请求或要求调用方显式确认，不得自动修改账户配置。
 

@@ -34,6 +34,11 @@ current = await client.orders.query_order(cl_ord_id="client-example-1")
 balance = await client.account.balance_snapshot()
 positions = await client.account.position_snapshots(symbol="BTC-USD")
 
+config = await client.account.position_config_snapshot("BTC-USD")
+change = await client.account.change_leverage_config("BTC-USD", 10)
+# change means the request was accepted; query again to confirm final config.
+config = await client.account.position_config_snapshot("BTC-USD")
+
 market = client.streams.market()
 await market.connect()
 await market.authenticate("<jwt-from-login>")

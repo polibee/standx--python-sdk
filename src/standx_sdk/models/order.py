@@ -21,6 +21,11 @@ class TimeInForce(str, Enum):
     ALO = "alo"
 
 
+class MarginMode(str, Enum):
+    CROSS = "cross"
+    ISOLATED = "isolated"
+
+
 class OrderStatus(str, Enum):
     OPEN = "open"
     CANCELED = "canceled"
