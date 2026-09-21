@@ -164,7 +164,16 @@ def test_market_stream_rejects_non_integer_sequence_numbers() -> None:
 
 def test_pending_order_response_can_be_recovered_from_rest() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="s")
-    stream.request("order:new", {"cl_ord_id": "client-1"}, request_id="request-1")
+    stream.request(
+        "order:new",
+        {"cl_ord_id": "client-1"},
+        request_id="request-1",
+        header={
+            "x-request-id": "request-1",
+            "x-request-timestamp": "1700000000000",
+            "x-request-signature": "signature",
+        },
+    )
 
     async def query(cl_ord_id: str) -> dict[str, object]:
         assert cl_ord_id == "client-1"
@@ -224,7 +233,16 @@ def test_order_state_reconciler_keeps_unknown_user_event_out_of_cache() -> None:
 
 def test_order_response_recovery_keeps_pending_when_rest_has_no_snapshot() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="s")
-    stream.request("order:new", {"cl_ord_id": "client-1"}, request_id="request-1")
+    stream.request(
+        "order:new",
+        {"cl_ord_id": "client-1"},
+        request_id="request-1",
+        header={
+            "x-request-id": "request-1",
+            "x-request-timestamp": "1700000000000",
+            "x-request-signature": "signature",
+        },
+    )
 
     async def query(_: str) -> Order | None:
         return None
@@ -296,7 +314,14 @@ def test_order_response_reconnect_does_not_resend_pending_side_effect() -> None:
     async def scenario() -> None:
         await stream.connect()
         await stream.send_request(
-            "order:new", {"cl_ord_id": "client-1"}, request_id="request-1"
+            "order:new",
+            {"cl_ord_id": "client-1"},
+            request_id="request-1",
+            header={
+                "x-request-id": "request-1",
+                "x-request-timestamp": "1700000000000",
+                "x-request-signature": "signature",
+            },
         )
         await stream.reconnect()
 

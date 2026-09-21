@@ -702,6 +702,8 @@ python -m build
 
 Order Response Stream 的 `request()`和`send_request()`支持调用方注入文档定义的认证 header；请求仍严格保留 `session_id`、`request_id`、`method`、`header`和 JSON 字符串形式的 `params`。
 
+Order Response Stream 的 `order:new`和`order:cancel`必须提供 `x-request-id`、`x-request-timestamp`和`x-request-signature`三项认证 header；`auth:login`可以使用空 header。
+
 ## 15. 验收标准
 
 项目完成必须同时满足：

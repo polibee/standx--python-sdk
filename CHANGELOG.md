@@ -29,6 +29,7 @@ All notable changes to this project are documented here.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.
 - Added direct `market_stream()` and `order_response_stream()` client factories.
+- Enforced required authentication headers for Order Response order requests.
 - Expanded `InstrumentRules` with documented enabled and lifecycle timestamp metadata.
 - Expanded Market Stream user order events with documented order snapshot fields.
 - Expanded Market Stream position and balance events with documented account metadata.

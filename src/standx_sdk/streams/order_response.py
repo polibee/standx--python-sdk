@@ -39,13 +39,22 @@ class OrderResponseStream(StreamBase):
     ) -> dict[str, Any]:
         if method not in {"auth:login", "order:new", "order:cancel"}:
             raise ValueError("unsupported StandX Order Response method")
+        request_header = dict(header or {})
+        if method in {"order:new", "order:cancel"}:
+            required_headers = {
+                "x-request-id",
+                "x-request-timestamp",
+                "x-request-signature",
+            }
+            if not required_headers.issubset(request_header):
+                raise ValueError("order requests require authentication header")
         self._pending_request_ids.add(request_id)
         self._pending_requests[request_id] = {"method": method, "params": dict(params)}
         return {
             "session_id": self.session_id,
             "request_id": request_id,
             "method": method,
-            "header": dict(header or {}),
+            "header": request_header,
             "params": json.dumps(params, separators=(",", ":"), ensure_ascii=False),
         }
 

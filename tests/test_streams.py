@@ -175,7 +175,16 @@ def test_websocket_transport_passes_ping_configuration(monkeypatch: pytest.Monke
 def test_order_response_stream_builds_documented_request_envelope() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
 
-    message = stream.request("order:new", {"qty": "0.1"}, request_id="request-1")
+    message = stream.request(
+        "order:new",
+        {"qty": "0.1"},
+        request_id="request-1",
+        header={
+            "x-request-id": "request-1",
+            "x-request-timestamp": "1700000000000",
+            "x-request-signature": "signature",
+        },
+    )
 
     assert message["session_id"] == "session-1"
     assert message["request_id"] == "request-1"
@@ -204,10 +213,26 @@ def test_order_response_stream_accepts_documented_authentication_header() -> Non
     }
 
 
+def test_order_response_stream_requires_authentication_header_for_orders() -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+
+    with pytest.raises(ValueError, match="authentication header"):
+        stream.request("order:new", {"qty": "0.1"}, request_id="request-1")
+
+
 def test_order_response_stream_tracks_request_ids_until_response() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
 
-    stream.request("order:new", {"qty": "0.1"}, request_id="request-1")
+    stream.request(
+        "order:new",
+        {"qty": "0.1"},
+        request_id="request-1",
+        header={
+            "x-request-id": "request-1",
+            "x-request-timestamp": "1700000000000",
+            "x-request-signature": "signature",
+        },
+    )
 
     assert stream.pending_request_ids == {"request-1"}
     assert stream.resolve({"request_id": "request-1", "code": 0}) == {
