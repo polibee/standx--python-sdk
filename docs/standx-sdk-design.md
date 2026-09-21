@@ -226,6 +226,8 @@ RestTransport
     └── OrdersApi
 ```
 
+账户和订单查询使用类型化 DTO：`BalanceSnapshot`、`PositionSnapshot` 和 `Order`。这些 DTO 对文档中的 decimal 字段统一使用 `Decimal`，订单 `status` 保留 StandX 原始字符串（包括示例中的 `new`），不会把服务端状态擅自改写为其他交易所状态。
+
 ### 8.1 Transport 职责
 
 - 构造 URL；
@@ -246,6 +248,7 @@ RestTransport
 - 只有服务端明确拒绝时才能返回 `ORDER_REJECTED`；
 - 对创建订单不默认自动重试；
 - 支持通过 `client_order_id`查询恢复状态；
+- `OrdersApi.query_order()`、`query_orders()`和`query_open_orders()`用于恢复和读取订单快照；
 - 撤单请求需要区分“发送成功”和“最终状态确认”。
 
 ### 8.4 StandX 市场规则与订单精度

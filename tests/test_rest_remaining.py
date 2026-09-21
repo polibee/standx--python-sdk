@@ -8,6 +8,8 @@ import pytest
 from standx_sdk.domain.account import AccountApi
 from standx_sdk.domain.orders import OrdersApi
 from standx_sdk.errors import ErrorCode, StandXError
+from standx_sdk.models.account import BalanceSnapshot, PositionSnapshot
+from standx_sdk.models.order import Order
 from standx_sdk.transport.http import HttpTransport
 
 
@@ -119,6 +121,78 @@ def test_account_api_maps_balance_and_position_endpoints() -> None:
     assert balance["balance"] == Decimal("10.5")
     assert positions == []
     assert paths == ["/api/query_balance", "/api/query_positions"]
+
+
+def test_account_api_returns_documented_typed_snapshots() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/query_balance":
+            return httpx.Response(
+                200,
+                json={
+                    "balance": "10.5",
+                    "equity": "11.0",
+                    "upnl": "0.5",
+                    "cross_available": "9.0",
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "result": [
+                    {
+                        "id": 15,
+                        "symbol": "BTC-USD",
+                        "qty": "0.5",
+                        "entry_price": "50000",
+                        "leverage": "10",
+                        "margin_mode": "isolated",
+                        "status": "open",
+                    }
+                ]
+            },
+        )
+
+    api = AccountApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+
+    async def collect() -> tuple[BalanceSnapshot, list[PositionSnapshot]]:
+        return await asyncio.gather(api.balance_snapshot(), api.position_snapshots())
+
+    balance, positions = asyncio.run(collect())
+
+    assert isinstance(balance, BalanceSnapshot)
+    assert balance.balance == Decimal("10.5")
+    assert isinstance(positions[0], PositionSnapshot)
+    assert positions[0].qty == Decimal("0.5")
+
+
+def test_orders_api_queries_typed_order_snapshots() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/query_order"
+        assert request.url.params["cl_ord_id"] == "client-1"
+        return httpx.Response(
+            200,
+            json={
+                "id": 101,
+                "cl_ord_id": "client-1",
+                "symbol": "BTC-USD",
+                "side": "buy",
+                "order_type": "limit",
+                "qty": "0.1",
+                "fill_qty": "0",
+                "fill_avg_price": "0",
+                "price": "50000",
+                "status": "open",
+                "time_in_force": "gtc",
+                "reduce_only": False,
+            },
+        )
+
+    api = OrdersApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+    order = asyncio.run(api.query_order(cl_ord_id="client-1"))
+
+    assert isinstance(order, Order)
+    assert order.id == 101
+    assert order.qty == Decimal("0.1")
 
 
 def test_rate_limit_response_maps_to_retryable_error() -> None:

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
 
-from ..models.order import CreateOrderRequest
+from ..models.order import CreateOrderRequest, Order
 from ..transport.http import HttpTransport
 
 
@@ -67,6 +67,50 @@ class OrdersApi:
             await self._transport.post("/api/cancel_orders", json=body, signed=True)
         )
 
+    async def query_order(
+        self, *, order_id: int | None = None, cl_ord_id: str | None = None
+    ) -> Order:
+        if order_id is None and cl_ord_id is None:
+            raise ValueError("query_order requires order_id or cl_ord_id")
+        params = {
+            key: value
+            for key, value in {"order_id": order_id, "cl_ord_id": cl_ord_id}.items()
+            if value is not None
+        }
+        return _order_from(await self._transport.get("/api/query_order", params=params))
+
+    async def query_orders(
+        self,
+        *,
+        symbol: str | None = None,
+        status: str | None = None,
+        order_type: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        last_id: int | None = None,
+        limit: int | None = None,
+    ) -> list[Order]:
+        params = _query_params(
+            symbol=symbol,
+            status=status,
+            order_type=order_type,
+            start=start,
+            end=end,
+            last_id=last_id,
+            limit=limit,
+        )
+        response = cast(dict[str, Any], await self._transport.get("/api/query_orders", params=params))
+        return [_order_from(item) for item in response.get("result", [])]
+
+    async def query_open_orders(
+        self, *, symbol: str | None = None, limit: int | None = None
+    ) -> list[Order]:
+        params = _query_params(symbol=symbol, limit=limit)
+        response = cast(
+            dict[str, Any], await self._transport.get("/api/query_open_orders", params=params)
+        )
+        return [_order_from(item) for item in response.get("result", [])]
+
     @staticmethod
     def _result(value: dict[str, object]) -> SubmissionResult:
         typed = cast(dict[str, Any], value)
@@ -74,3 +118,28 @@ class OrdersApi:
 
 
 __all__ = ["OrdersApi", "SubmissionResult"]
+
+
+def _query_params(**values: object) -> dict[str, object]:
+    return {key: value for key, value in values.items() if value is not None}
+
+
+def _order_from(value: object) -> Order:
+    typed = cast(dict[str, Any], value)
+    return Order(
+        id=int(typed["id"]),
+        cl_ord_id=typed.get("cl_ord_id"),
+        symbol=str(typed["symbol"]),
+        side=str(typed["side"]),
+        order_type=str(typed["order_type"]),
+        qty=Decimal(str(typed["qty"])),
+        fill_qty=Decimal(str(typed["fill_qty"])),
+        fill_avg_price=Decimal(str(typed["fill_avg_price"])),
+        status=str(typed["status"]),
+        time_in_force=str(typed["time_in_force"]),
+        reduce_only=bool(typed["reduce_only"]),
+        price=None if typed.get("price") is None else Decimal(str(typed["price"])),
+        leverage=None if typed.get("leverage") is None else int(typed["leverage"]),
+        margin_mode=typed.get("margin_mode"),
+        updated_at=typed.get("updated_at"),
+    )

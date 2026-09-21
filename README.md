@@ -26,8 +26,13 @@ order = CreateOrderRequest(
     price=Decimal("50000"),
     time_in_force=TimeInForce.GTC,
     reduce_only=False,
+    cl_ord_id="client-example-1",
 )
 submission = await client.orders.create(order)
+current = await client.orders.query_order(cl_ord_id="client-example-1")
+
+balance = await client.account.balance_snapshot()
+positions = await client.account.position_snapshots(symbol="BTC-USD")
 
 market = client.streams.market()
 await market.connect()
@@ -39,6 +44,10 @@ await market.close_async()
 `new_order` and `cancel_order` responses indicate submission/acceptance, not
 final matching. Use `client.streams.order_response()` with a shared
 `session_id` to correlate asynchronous order responses.
+
+For a request that was submitted but not confirmed, query the order again with
+the client order ID. The typed REST methods return `Order`, `BalanceSnapshot`,
+and `PositionSnapshot` DTOs with decimal values represented by `Decimal`.
 
 ## Development
 

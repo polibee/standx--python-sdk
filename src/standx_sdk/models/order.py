@@ -57,3 +57,22 @@ class CreateOrderRequest:
             raise ValueError("price must be positive")
         if self.leverage is not None and self.leverage <= 0:
             raise ValueError("leverage must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class Order:
+    id: int
+    cl_ord_id: str | None
+    symbol: str
+    side: str
+    order_type: str
+    qty: Decimal
+    fill_qty: Decimal
+    fill_avg_price: Decimal
+    status: str
+    time_in_force: str
+    reduce_only: bool
+    price: Decimal | None = None
+    leverage: int | None = None
+    margin_mode: str | None = None
+    updated_at: str | None = None
