@@ -12,8 +12,14 @@ from decimal import Decimal
 
 from standx_sdk import ClientConfig, StandXClient
 from standx_sdk.models.order import CreateOrderRequest, OrderSide, OrderType, TimeInForce
+from standx_sdk.signing.request import Ed25519RequestSigner
 
-client = StandXClient(ClientConfig(base_url="https://perps.standx.com"))
+# Load the 32-byte key from a secure runtime secret store in real applications.
+request_signer = Ed25519RequestSigner(private_key)
+client = StandXClient(
+    ClientConfig(base_url="https://perps.standx.com"),
+    request_signer=request_signer,
+)
 
 rules = await client.markets.symbol_info("BTC-USD")
 balance = await client.account.balance()

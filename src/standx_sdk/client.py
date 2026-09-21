@@ -8,7 +8,8 @@ from .domain.markets import MarketsApi
 from .domain.orders import OrdersApi
 from .streams.market import MarketStream
 from .streams.order_response import OrderResponseStream
-from .transport.http import HttpTransport
+from .transport.http import HttpTransport, RequestSigner
+from .transport.websocket import WebSocketTransport
 
 
 class _Streams:
@@ -16,13 +17,22 @@ class _Streams:
         self._config = config
         self._created: list[MarketStream | OrderResponseStream] = []
 
-    def market(self) -> MarketStream:
-        stream = MarketStream(self._config.market_stream_url)
+    def market(self, *, transport: WebSocketTransport | None = None) -> MarketStream:
+        stream = MarketStream(self._config.market_stream_url, transport=transport)
         self._created.append(stream)
         return stream
 
-    def order_response(self, *, session_id: str = "sdk-session") -> OrderResponseStream:
-        stream = OrderResponseStream(self._config.order_response_url, session_id=session_id)
+    def order_response(
+        self,
+        *,
+        session_id: str = "sdk-session",
+        transport: WebSocketTransport | None = None,
+    ) -> OrderResponseStream:
+        stream = OrderResponseStream(
+            self._config.order_response_url,
+            session_id=session_id,
+            transport=transport,
+        )
         self._created.append(stream)
         return stream
 
@@ -37,12 +47,15 @@ class StandXClient:
         config: ClientConfig,
         signer: WalletSigner | None = None,
         *,
+        request_signer: RequestSigner | None = None,
         http_transport: HttpTransport | None = None,
         auth_transport: AuthTransport | None = None,
     ) -> None:
         self.config = config
         transport = http_transport or HttpTransport(
-            config.base_url, timeout_seconds=config.timeout_seconds
+            config.base_url,
+            timeout_seconds=config.timeout_seconds,
+            request_signer=request_signer,
         )
         self.http_transport = transport
         self.auth_transport = auth_transport or HttpTransport(

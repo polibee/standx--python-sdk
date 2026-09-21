@@ -89,7 +89,7 @@ client = StandXClient(
 - 可选的 `impersonated_vault_id`；
 - 可注入的 HTTP/WebSocket transport。
 
-`StandXClient`接受可选的 `http_transport`，所有 REST domain service 共享同一个实例；WebSocket endpoint 从 `ClientConfig`读取，不能在 facade 内硬编码。这样 Fake HTTP/WebSocket transport 可以在离线测试和 PAPER 环境中替换真实网络实现。
+`StandXClient`接受可选的 `request_signer`和 `http_transport`，所有 REST domain service 共享同一个实例；WebSocket endpoint 从 `ClientConfig`读取，不能在 facade 内硬编码。`client.streams.market(transport=...)`和 `client.streams.order_response(transport=...)`支持注入 Fake WebSocket transport。这样请求签名、Fake HTTP/WebSocket transport 都可以在离线测试和 PAPER 环境中替换真实网络实现。
 
 `AuthService.login()`成功后会通过 token sink 更新共享 REST transport 的 Bearer token，因此后续账户、订单和市场请求使用同一个认证状态。`StandXClient.close_async()`负责关闭已创建的 stream、REST transport 和认证 transport；调用方在异步应用退出时必须调用它。
 

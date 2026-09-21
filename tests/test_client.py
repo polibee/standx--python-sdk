@@ -4,6 +4,7 @@ import httpx
 
 from standx_sdk import ClientConfig, Environment, StandXClient
 from standx_sdk.auth.wallet import WalletSigner
+from standx_sdk.signing.request import Ed25519RequestSigner
 from standx_sdk.transport.http import HttpTransport
 
 
@@ -31,6 +32,33 @@ def test_client_uses_configured_stream_endpoints_and_injected_http_transport() -
     assert client.markets._transport is transport
     assert client.streams.market().endpoint == "wss://paper.example/market"
     assert client.streams.order_response(session_id="s").endpoint == "wss://paper.example/order"
+
+
+def test_client_injects_request_signer_into_default_rest_transport() -> None:
+    request_signer = Ed25519RequestSigner(bytes(range(32)))
+
+    client = StandXClient(
+        ClientConfig(base_url="https://paper.example"),
+        request_signer=request_signer,
+    )
+
+    assert client.http_transport._request_signer is request_signer
+
+
+def test_client_stream_factories_accept_offline_transports() -> None:
+    class FakeStreamTransport:
+        pass
+
+    transport = FakeStreamTransport()
+    client = StandXClient(ClientConfig(base_url="https://paper.example"))
+
+    market = client.streams.market(transport=transport)  # type: ignore[arg-type]
+    order_response = client.streams.order_response(
+        session_id="s", transport=transport  # type: ignore[arg-type]
+    )
+
+    assert market.transport is transport
+    assert order_response.transport is transport
 
 
 class FakeAuthTransport:
