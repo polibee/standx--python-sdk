@@ -24,6 +24,7 @@ All notable changes to this project are documented here.
 - Expanded `Order` snapshots with documented lock, margin, position, source, block, and timestamp fields.
 - Expanded symbol market DTOs with documented base, quote, and spread fields.
 - Expanded `InstrumentRules` with documented enabled and lifecycle timestamp metadata.
+- Expanded Market Stream user order events with documented order snapshot fields.
 
 ### Safety
 

@@ -51,12 +51,32 @@ def test_market_stream_retries_with_exponential_backoff() -> None:
 def test_market_user_channels_map_to_typed_events() -> None:
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
 
-    order = stream.decode({"channel": "order", "data": {"id": 1, "status": "filled", "qty": "1.0"}})
+    order = stream.decode(
+        {
+            "channel": "order",
+            "data": {
+                "id": 1,
+                "status": "filled",
+                "qty": "1.0",
+                "avail_locked": "3.0",
+                "leverage": "15",
+                "margin": "10.0",
+                "position_id": 15,
+                "source": "user",
+                "user": "bsc_0x...",
+            },
+        }
+    )
     position = stream.decode({"channel": "position", "data": {"id": 2, "qty": "0.5", "leverage": "10"}})
     balance = stream.decode({"channel": "balance", "data": {"token": "DUSD", "total": "100.0"}})
 
     assert isinstance(order, UserOrderEvent)
     assert order.status == "filled"
+    assert order.avail_locked == Decimal("3.0")
+    assert order.leverage == 15
+    assert order.margin == Decimal("10.0")
+    assert order.position_id == 15
+    assert order.source == "user"
     assert isinstance(position, PositionEvent)
     assert position.qty == Decimal("0.5")
     assert isinstance(balance, BalanceEvent)

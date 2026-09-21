@@ -526,7 +526,7 @@ SDK 将 Market Stream 的 `data` 映射为 `models.stream` 中的不可变 DTO�
 - `trade` → `UserTradeEvent`，公开 `price`、`depth_book`、`public_trade` 也有对应 DTO；
 - 未知 channel 或缺少 `channel`/`data` 的消息转换为协议错误（未知 channel 为 `ValueError`，消息结构错误为 `TypeError`）。
 
-用户事件不会被拆成第三条 WebSocket 连接，仍由 Market Stream 统一承载。DTO 映射只做类型转换，不推导 maker/taker、部分成交状态或其他 StandX 未定义字段。
+用户事件不会被拆成第三条 WebSocket 连接，仍由 Market Stream 统一承载。`UserOrderEvent`保留订单 channel 文档定义的锁定金额、保证金、仓位、来源、区块和时间字段；DTO 映射只做类型转换，不推导 maker/taker、部分成交状态或其他 StandX 未定义字段。
 
 Market Stream 的用户 channel 必须先调用 `authenticate(token, impersonate=...)`。SDK 发送文档定义的 `{ "auth": { "token": ..., "impersonate": ... } }` 消息，并且只有收到 `channel=auth` 且 `data.code=200` 后才允许订阅 `order`、`position`、`balance`或`trade`。重连时会先重新认证，再按原顺序恢复用户订阅；认证失败不会伪造已认证状态。
 

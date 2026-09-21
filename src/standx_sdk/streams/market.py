@@ -178,6 +178,18 @@ class MarketStream(StreamBase):
                 cl_ord_id=_optional_str(data.get("cl_ord_id")),
                 reduce_only=bool(data.get("reduce_only", False)),
                 time_in_force=_optional_str(data.get("time_in_force")),
+                avail_locked=_optional_decimal(data.get("avail_locked")),
+                closed_block=_optional_int(data.get("closed_block")),
+                created_at=_optional_str(data.get("created_at")),
+                created_block=_optional_int(data.get("created_block")),
+                leverage=_optional_int(data.get("leverage")),
+                liq_id=_optional_int(data.get("liq_id")),
+                margin=_optional_decimal(data.get("margin")),
+                payload=data.get("payload"),
+                position_id=_optional_int(data.get("position_id")),
+                remark=_optional_str(data.get("remark")),
+                source=_optional_str(data.get("source")),
+                user=_optional_str(data.get("user")),
                 updated_at=_optional_str(data.get("updated_at")),
             )
         if channel == "position":
