@@ -10,7 +10,7 @@ from standx_sdk.domain.orders import OrdersApi
 from standx_sdk.errors import ErrorCode, StandXError
 from standx_sdk.models.account import BalanceSnapshot, PositionSnapshot
 from standx_sdk.models.order import MarginMode, Order
-from standx_sdk.models.trade import FundingPayment, UserTrade
+from standx_sdk.models.trade import FundingPayment, FundingRate, UserTrade
 from standx_sdk.resilience.rate_limit import CreditRateLimiter
 from standx_sdk.transport.http import HttpTransport
 
@@ -280,6 +280,47 @@ def test_account_api_maps_user_trades_and_funding_history() -> None:
     assert trades[0].fee_qty == Decimal(2)
     assert isinstance(funding[0], FundingPayment)
     assert funding[0].qty == Decimal("-0.1")
+
+
+def test_account_api_maps_documented_funding_rate_snapshots() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/query_funding_rates"
+        assert request.url.params["symbol"] == "BTC-USD"
+        assert request.url.params["start_time"] == "1000"
+        assert request.url.params["end_time"] == "2000"
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "id": 1,
+                    "symbol": "BTC-USD",
+                    "funding_rate": "0.0001",
+                    "index_price": "121601.158461",
+                    "mark_price": "121602.43",
+                    "premium": "0.0001",
+                    "time": "2025-08-11T03:48:47.086505Z",
+                    "created_at": "2025-08-11T03:48:47.086505Z",
+                    "updated_at": "2025-08-11T03:48:47.086505Z",
+                }
+            ],
+        )
+
+    api = AccountApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+    rates = asyncio.run(api.funding_rate_snapshots("BTC-USD", 1000, 2000))
+
+    assert rates == [
+        FundingRate(
+            id=1,
+            symbol="BTC-USD",
+            funding_rate=Decimal("0.0001"),
+            index_price=Decimal("121601.158461"),
+            mark_price=Decimal("121602.43"),
+            premium=Decimal("0.0001"),
+            time="2025-08-11T03:48:47.086505Z",
+            created_at="2025-08-11T03:48:47.086505Z",
+            updated_at="2025-08-11T03:48:47.086505Z",
+        )
+    ]
 
 
 async def _collect_trade_history(api: AccountApi) -> tuple[list[UserTrade], list[FundingPayment]]:

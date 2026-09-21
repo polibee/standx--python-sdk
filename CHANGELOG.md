@@ -18,6 +18,7 @@ All notable changes to this project are documented here.
 - Explicit validation of order `margin_mode` values and optional matching against current leverage/margin configuration.
 - Positive and price-precision validation for `tp_price` and `sl_price`.
 - Typed `RecentTrade` snapshots preserving documented `is_buyer_taker` and `quote_qty` fields.
+- Typed `FundingRate` snapshots for documented funding-rate history fields.
 
 ### Safety
 

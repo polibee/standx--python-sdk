@@ -4,7 +4,7 @@ from typing import Any, cast
 from ..models.account import BalanceSnapshot, PositionSnapshot
 from ..models.account_config import ConfigChangeResult, PositionConfig
 from ..models.order import MarginMode
-from ..models.trade import FundingPayment, UserTrade
+from ..models.trade import FundingPayment, FundingRate, UserTrade
 from ..transport.http import HttpTransport
 
 
@@ -136,6 +136,12 @@ class AccountApi:
             )
         ))
 
+    async def funding_rate_snapshots(
+        self, symbol: str, start_time: int, end_time: int
+    ) -> list[FundingRate]:
+        values = await self.funding_rates(symbol, start_time, end_time)
+        return [_funding_rate_from(value) for value in values]
+
 
 __all__ = ["AccountApi"]
 
@@ -179,6 +185,20 @@ def _funding_from(value: dict[str, Any]) -> FundingPayment:
         qty=Decimal(str(value["qty"])),
         txn_type=str(value["txn_type"]),
         transact_time=str(value["transact_time"]),
+        created_at=_optional_string(value.get("created_at")),
+        updated_at=_optional_string(value.get("updated_at")),
+    )
+
+
+def _funding_rate_from(value: dict[str, Any]) -> FundingRate:
+    return FundingRate(
+        id=int(value["id"]),
+        symbol=str(value["symbol"]),
+        funding_rate=Decimal(str(value["funding_rate"])),
+        index_price=Decimal(str(value["index_price"])),
+        mark_price=Decimal(str(value["mark_price"])),
+        premium=Decimal(str(value["premium"])),
+        time=_optional_string(value.get("time")),
         created_at=_optional_string(value.get("created_at")),
         updated_at=_optional_string(value.get("updated_at")),
     )

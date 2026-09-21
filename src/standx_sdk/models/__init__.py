@@ -29,7 +29,7 @@ from .stream import (
     UserOrderEvent,
     UserTradeEvent,
 )
-from .trade import FundingPayment, RecentTrade, UserTrade
+from .trade import FundingPayment, FundingRate, RecentTrade, UserTrade
 
 __all__ = [
     "BalanceEvent",
@@ -39,6 +39,7 @@ __all__ = [
     "DepthBook",
     "DepthBookEvent",
     "FundingPayment",
+    "FundingRate",
     "InstrumentRules",
     "MarginMode",
     "MarketOverview",

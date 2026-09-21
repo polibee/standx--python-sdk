@@ -15,6 +15,19 @@ class RecentTrade:
 
 
 @dataclass(frozen=True, slots=True)
+class FundingRate:
+    id: int
+    symbol: str
+    funding_rate: Decimal
+    index_price: Decimal
+    mark_price: Decimal
+    premium: Decimal
+    time: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class UserTrade:
     id: int
     order_id: int
