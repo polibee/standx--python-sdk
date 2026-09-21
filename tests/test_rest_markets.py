@@ -5,6 +5,7 @@ import httpx
 
 from standx_sdk.domain.markets import MarketsApi
 from standx_sdk.models.market import DepthBook, MarketOverview, SymbolMarket, SymbolPrice
+from standx_sdk.models.trade import RecentTrade
 from standx_sdk.transport.http import HttpTransport
 
 
@@ -107,3 +108,37 @@ def test_market_api_maps_documented_market_and_depth_dtos() -> None:
     assert market.funding_rate == Decimal("0.1")
     assert price.spread_bid == Decimal(49999)
     assert book.asks == ((Decimal(50001), Decimal(1)),)
+
+
+def test_recent_trade_snapshots_maps_documented_fields() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/query_recent_trades"
+        assert request.url.params["symbol"] == "BTC-USD"
+        assert request.url.params["limit"] == "2"
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "is_buyer_taker": True,
+                    "price": "121720.18",
+                    "qty": "0.01",
+                    "quote_qty": "1217.2018",
+                    "symbol": "BTC-USD",
+                    "time": "2025-08-11T03:48:47.086505Z",
+                }
+            ],
+        )
+
+    api = MarketsApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+    trades = asyncio.run(api.recent_trade_snapshots("BTC-USD", limit=2))
+
+    assert trades == [
+        RecentTrade(
+            symbol="BTC-USD",
+            price=Decimal("121720.18"),
+            qty=Decimal("0.01"),
+            quote_qty=Decimal("1217.2018"),
+            is_buyer_taker=True,
+            time="2025-08-11T03:48:47.086505Z",
+        )
+    ]

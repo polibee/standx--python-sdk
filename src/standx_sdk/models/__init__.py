@@ -29,7 +29,7 @@ from .stream import (
     UserOrderEvent,
     UserTradeEvent,
 )
-from .trade import FundingPayment, UserTrade
+from .trade import FundingPayment, RecentTrade, UserTrade
 
 __all__ = [
     "BalanceEvent",
@@ -53,6 +53,7 @@ __all__ = [
     "PositionSnapshot",
     "PriceEvent",
     "PublicTradeEvent",
+    "RecentTrade",
     "SymbolMarket",
     "SymbolPrice",
     "TimeInForce",

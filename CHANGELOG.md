@@ -17,6 +17,7 @@ All notable changes to this project are documented here.
 - Automatic `cl_ord_id` generation for orders that omit a client order ID, with the ID retained in `SubmissionResult`.
 - Explicit validation of order `margin_mode` values and optional matching against current leverage/margin configuration.
 - Positive and price-precision validation for `tp_price` and `sl_price`.
+- Typed `RecentTrade` snapshots preserving documented `is_buyer_taker` and `quote_qty` fields.
 
 ### Safety
 

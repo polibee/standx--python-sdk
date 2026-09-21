@@ -9,6 +9,7 @@ from ..models.market import (
     SymbolMarket,
     SymbolPrice,
 )
+from ..models.trade import RecentTrade
 from ..transport.http import HttpTransport
 
 
@@ -89,6 +90,22 @@ class MarketsApi:
         response = await self._transport.get("/api/query_recent_trades", params=params)
         values = response.get("result", response) if isinstance(response, dict) else response
         return cast(list[dict[str, Any]], values)
+
+    async def recent_trade_snapshots(
+        self, symbol: str, *, limit: int | None = None
+    ) -> list[RecentTrade]:
+        values = await self.recent_trades(symbol, limit=limit)
+        return [
+            RecentTrade(
+                symbol=str(value["symbol"]),
+                price=Decimal(str(value["price"])),
+                qty=Decimal(str(value["qty"])),
+                quote_qty=Decimal(str(value["quote_qty"])),
+                is_buyer_taker=bool(value["is_buyer_taker"]),
+                time=value.get("time") if isinstance(value.get("time"), str) else None,
+            )
+            for value in values
+        ]
 
 
 __all__ = ["MarketsApi"]

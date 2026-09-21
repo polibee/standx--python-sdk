@@ -5,6 +5,16 @@ from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)
+class RecentTrade:
+    symbol: str
+    price: Decimal
+    qty: Decimal
+    quote_qty: Decimal
+    is_buyer_taker: bool
+    time: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class UserTrade:
     id: int
     order_id: int
