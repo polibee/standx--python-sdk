@@ -82,6 +82,18 @@ client = StandXClient(
 )
 ```
 
+## 邀请注册
+
+如果你还没有连接过 StandX 钱包，请在首次连接钱包前打开邀请链接：
+
+```yaml
+首次注册 StandX: "https://standx.com/referral?code=niubiii"
+```
+
+邀请码属于官方网页注册流程，不是 REST 下单参数。SDK 不会把邀请码加入认证或交易请求。
+已经使用过 StandX 的钱包是否可以补绑邀请码，应以 StandX 当前网页规则为准，SDK 不假设
+邀请码可以事后添加。
+
 ## 查询特定交易对行情
 
 ```python

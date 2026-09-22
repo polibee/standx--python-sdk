@@ -83,6 +83,20 @@ client = StandXClient(
 )
 ```
 
+## Referral registration
+
+If you have never connected a wallet to StandX, open the referral link before the first wallet
+connection:
+
+```yaml
+first_time_standx_registration: "https://standx.com/referral?code=niubiii"
+```
+
+Referral codes belong to the official web onboarding flow. They are not REST order parameters,
+and this SDK does not try to attach them to authentication or trading requests. Existing wallet
+accounts should follow the current rules shown by StandX; the SDK does not assume that a referral
+code can be added retroactively.
+
 ## Query a market
 
 ```python
