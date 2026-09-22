@@ -7,6 +7,7 @@ import pytest
 
 from standx_sdk.domain.orders import OrdersApi
 from standx_sdk.errors import ErrorCode, StandXError
+from standx_sdk.models.market import InstrumentRules
 from standx_sdk.models.order import CreateOrderRequest, OrderSide, OrderType, TimeInForce
 from standx_sdk.transport.http import HttpTransport
 
@@ -21,6 +22,29 @@ class FakeSigner:
             "x-request-timestamp": str(timestamp),
             "x-request-signature": "signature",
         }
+
+
+def _rules() -> InstrumentRules:
+    return InstrumentRules(
+        symbol="BTC-USD",
+        base_asset="BTC",
+        base_decimals=9,
+        quote_asset="DUSD",
+        quote_decimals=9,
+        price_tick_decimals=2,
+        qty_tick_decimals=4,
+        min_order_qty=Decimal("0.0001"),
+        max_order_qty=Decimal(100),
+        max_position_size=Decimal(10),
+        max_leverage=20,
+        def_leverage=10,
+        max_open_orders=100,
+        price_cap_ratio=Decimal("0.3"),
+        price_floor_ratio=Decimal("0.3"),
+        maker_fee=Decimal("0.0001"),
+        taker_fee=Decimal("0.0004"),
+        depth_ticks=(Decimal("0.01"),),
+    )
 
 
 def test_new_order_uses_documented_path_and_decimal_strings() -> None:
@@ -101,6 +125,39 @@ def test_new_order_generates_client_order_id_when_omitted() -> None:
     assert isinstance(body, dict)
     assert isinstance(body["cl_ord_id"], str)
     assert body["cl_ord_id"]
+
+
+def test_order_creation_can_fetch_rules_before_local_validation() -> None:
+    calls: list[str] = []
+
+    async def rules_provider(symbol: str) -> InstrumentRules:
+        calls.append(symbol)
+        return _rules()
+
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(lambda _: httpx.Response(200, json={"code": 0})),
+        request_signer=FakeSigner(),
+    )
+    api = OrdersApi(transport, rules_provider=rules_provider)
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(
+            api.create(
+                CreateOrderRequest(
+                    symbol="BTC-USD",
+                    side=OrderSide.BUY,
+                    order_type=OrderType.LIMIT,
+                    qty=Decimal("0.00001"),
+                    price=Decimal(50000),
+                    time_in_force=TimeInForce.GTC,
+                    reduce_only=False,
+                )
+            )
+        )
+
+    assert caught.value.code is ErrorCode.VALIDATION_ERROR
+    assert calls == ["BTC-USD"]
 
 
 def test_cancel_requires_order_id_or_client_order_id() -> None:

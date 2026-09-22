@@ -20,6 +20,8 @@ def test_client_exposes_domain_services_and_stream_factories() -> None:
     assert client.positions._account is client.account
     assert client.trades._account is client.account
     assert client.orders is not None
+    assert client.orders._rules_provider is not None
+    assert getattr(client.orders._rules_provider, "__self__", None) is client.markets
     assert client.streams.market() is not None
     assert client.streams.order_response() is not None
     assert client.market_stream() is not None

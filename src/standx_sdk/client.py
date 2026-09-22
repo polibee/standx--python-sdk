@@ -82,7 +82,7 @@ class StandXClient:
         self.account = AccountApi(transport)
         self.positions = PositionsApi(self.account)
         self.trades = TradesApi(self.account)
-        self.orders = OrdersApi(transport)
+        self.orders = OrdersApi(transport, rules_provider=self.markets.symbol_info)
         self.streams = _Streams(config)
         self._closed = False
 

@@ -1,5 +1,5 @@
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, TypeVar, cast
@@ -27,8 +27,14 @@ def _decimal(value: Decimal | None) -> str | None:
 
 
 class OrdersApi:
-    def __init__(self, transport: HttpTransport) -> None:
+    def __init__(
+        self,
+        transport: HttpTransport,
+        *,
+        rules_provider: Callable[[str], Awaitable[InstrumentRules]] | None = None,
+    ) -> None:
         self._transport = transport
+        self._rules_provider = rules_provider
 
     async def create(
         self,
@@ -40,6 +46,8 @@ class OrdersApi:
         position_leverage: int | None = None,
         position_margin_mode: str | None = None,
     ) -> SubmissionResult:
+        if rules is None and self._rules_provider is not None:
+            rules = await self._rules_provider(request.symbol)
         if rules is not None:
             validate_order(
                 request,
