@@ -4,6 +4,7 @@ from decimal import Decimal
 import httpx
 
 from standx_sdk.domain.markets import MarketsApi
+from standx_sdk.errors import ErrorCode, StandXError
 from standx_sdk.models.market import DepthBook, MarketOverview, SymbolMarket, SymbolPrice
 from standx_sdk.models.trade import RecentTrade
 from standx_sdk.transport.http import HttpTransport
@@ -163,3 +164,67 @@ def test_recent_trade_snapshots_maps_documented_fields() -> None:
             time="2025-08-11T03:48:47.086505Z",
         )
     ]
+
+
+def test_symbol_info_malformed_success_response_is_protocol_error() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(lambda request: httpx.Response(200, json=[])),
+    )
+
+    caught = None
+    try:
+        asyncio.run(MarketsApi(transport).symbol_info("BTC-USD"))
+    except StandXError as error:
+        caught = error
+
+    assert caught is not None
+    assert caught.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.retryable is False
+
+
+def test_symbol_price_invalid_decimal_is_protocol_error() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={"symbol": "BTC-USD", "last_price": "not-a-decimal"},
+            )
+        ),
+    )
+
+    caught = None
+    try:
+        asyncio.run(MarketsApi(transport).symbol_price("BTC-USD"))
+    except StandXError as error:
+        caught = error
+
+    assert caught is not None
+    assert caught.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.retryable is False
+
+
+def test_overview_missing_summary_field_is_protocol_error() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "summary": {"open_interest_notional": "100", "symbol_count": 1},
+                    "symbols": [],
+                },
+            )
+        ),
+    )
+
+    caught = None
+    try:
+        asyncio.run(MarketsApi(transport).overview())
+    except StandXError as error:
+        caught = error
+
+    assert caught is not None
+    assert caught.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.retryable is False

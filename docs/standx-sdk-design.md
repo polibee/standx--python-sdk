@@ -254,6 +254,8 @@ HTTP 连接失败映射为可重试的 `PROTOCOL_ERROR`，不把底层 URL、Aut
 
 创建订单的 HTTP 超时会转换为不可自动重试的 `ORDER_UNKNOWN`，调用方必须先按 `cl_ord_id`查询再决定后续动作；其他 REST 成功响应的非法 JSON 统一转换为不可重试的 `PROTOCOL_ERROR`。
 
+REST 成功响应的 DTO 映射也属于协议边界：市场接口的缺失必填字段、空规则列表、非法整数/Decimal、损坏的深度层级或错误的成交数组结构，统一转换为不可重试的 `StandXError(code=PROTOCOL_ERROR)`。错误消息只包含 endpoint 标识，不包含原始响应、认证头或请求参数；底层已产生的 `StandXError` 不会被二次包装。
+
 ### 8.2 API 服务职责
 
 各 API 服务负责 endpoint 路径、请求 DTO、响应 DTO 和业务级错误判断。它们不得直接操作底层 HTTP 库的异常类型。
