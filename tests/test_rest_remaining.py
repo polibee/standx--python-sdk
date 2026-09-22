@@ -214,6 +214,44 @@ def test_account_api_maps_position_config_and_margin_changes() -> None:
     ]
 
 
+@pytest.mark.parametrize("leverage", [True, 1.5, 0, -1])
+def test_change_leverage_rejects_non_positive_integer_before_network(leverage: object) -> None:
+    calls = 0
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json={})
+
+    api = AccountApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(handler),
+            request_signer=FakeSigner(),
+        )
+    )
+    with pytest.raises(ValueError):
+        asyncio.run(api.change_leverage("BTC-USD", leverage))  # type: ignore[arg-type]
+    assert calls == 0
+
+
+def test_position_config_field_types_are_protocol_errors() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda _: httpx.Response(
+                200,
+                json={"symbol": 1, "leverage": True, "margin_mode": "cross"},
+            )
+        ),
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(AccountApi(transport).position_config("BTC-USD"))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+
 async def _collect_position_config(api: AccountApi) -> tuple[object, object, object]:
     return await asyncio.gather(
         api.position_config_snapshot("BTC-USD"),

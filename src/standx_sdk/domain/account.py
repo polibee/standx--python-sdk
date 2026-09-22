@@ -53,6 +53,8 @@ class AccountApi:
         return await self.positions(symbol)
 
     async def _position_config_raw(self, symbol: str) -> dict[str, Any]:
+        if not symbol:
+            raise ValueError("symbol must not be empty")
         return cast(dict[str, Any], _decimalize(
             await self._transport.get("/api/query_position_config", params={"symbol": symbol})
         ))
@@ -62,9 +64,9 @@ class AccountApi:
         return _protocol_decode(
             "query_position_config",
             lambda: PositionConfig(
-                symbol=str(value["symbol"]),
-                leverage=int(value["leverage"]),
-                margin_mode=MarginMode(str(value["margin_mode"])),
+                symbol=_required_string(value["symbol"]),
+                leverage=_integer(value["leverage"]),
+                margin_mode=MarginMode(_required_string(value["margin_mode"])),
             ),
         )
 
@@ -72,8 +74,10 @@ class AccountApi:
         return await self.position_config(symbol)
 
     async def _change_leverage_raw(self, symbol: str, leverage: int) -> dict[str, Any]:
-        if leverage <= 0:
-            raise ValueError("leverage must be positive")
+        if not symbol:
+            raise ValueError("symbol must not be empty")
+        if isinstance(leverage, bool) or not isinstance(leverage, int) or leverage <= 0:
+            raise ValueError("leverage must be a positive integer")
         return cast(dict[str, Any], await self._transport.post(
             "/api/change_leverage", json={"symbol": symbol, "leverage": leverage}, signed=True
         ))
@@ -86,6 +90,8 @@ class AccountApi:
         return await self.change_leverage(symbol, leverage)
 
     async def _change_margin_mode_raw(self, symbol: str, margin_mode: str) -> dict[str, Any]:
+        if not symbol:
+            raise ValueError("symbol must not be empty")
         if margin_mode not in {"cross", "isolated"}:
             raise ValueError("margin_mode must be cross or isolated")
         return cast(dict[str, Any], await self._transport.post(

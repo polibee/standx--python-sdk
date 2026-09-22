@@ -373,7 +373,9 @@ SDK 必须区分：
 
 当前实现提供 `AccountApi.position_config_snapshot(symbol)` 返回
 `PositionConfig`，以及 `change_leverage_config(symbol, leverage)` 和
-`change_margin_mode_config(symbol, margin_mode)` 返回 `ConfigChangeResult`。
+`change_margin_mode_config(symbol, margin_mode)` 返回 `ConfigChangeResult`。symbol 必须非空，杠杆必须是
+正整数；配置查询和变更响应的 symbol、leverage、margin_mode、code、message、request_id 按文档类型严格
+解析，错误类型统一为不可重试的 `PROTOCOL_ERROR` 或本地 `ValueError`。
 两个变更方法只表示服务端接受了配置请求，并不代表已有持仓或订单已经改变；
 调用方应重新查询 `position_config_snapshot`确认最终账户配置。配置变更是有副作用
 的 POST，SDK 默认不自动重试，也不会在创建订单时静默修改账户配置。

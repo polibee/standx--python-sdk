@@ -48,6 +48,7 @@ All notable changes to this project are documented here.
 - Hardened REST order snapshot boolean, integer, and string field boundaries.
 - Hardened account, position, trade, and funding DTO field boundaries.
 - Hardened market metadata, overview, and symbol snapshot field boundaries.
+- Hardened leverage and margin-mode configuration boundaries.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.
