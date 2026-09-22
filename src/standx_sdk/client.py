@@ -76,6 +76,7 @@ class StandXClient:
             self.auth_transport,
             signer,
             on_token=transport.set_token,
+            on_token_expiry=transport.set_token_expiry,
         )
         self.markets = MarketsApi(transport)
         self.account = AccountApi(transport)

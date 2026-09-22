@@ -222,6 +222,10 @@ x-request-signature
 
 `AuthService` 对服务端拒绝返回 `AUTH_FAILED`，对缺失或非法 `signedData`、非对象 JWT payload、缺失或类型错误的登录认证字段返回不可重试的 `PROTOCOL_ERROR`；错误消息只包含固定诊断文本，不回显 JWT、签名或完整认证请求体。
 
+登录成功后，`StandXClient` 将 token 和解析出的 JWT `exp` 同步到共享 REST transport。每次请求
+在访问网络前检查过期时间，已过期时直接返回不可重试的 `TOKEN_EXPIRED`；SDK 不自动刷新 token，
+调用方必须重新登录。opaque token 没有可解析的 `exp` 时保持兼容，不做本地过期判断。
+
 ### 7.4 数值 DTO 边界
 
 文档中的金额、价格、数量、费率、深度和成交量字段统一映射为有限 `Decimal`。服务端返回

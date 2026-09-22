@@ -58,10 +58,12 @@ class AuthService:
         signer: WalletSigner | None = None,
         *,
         on_token: Callable[[str], None] | None = None,
+        on_token_expiry: Callable[[int | None], None] | None = None,
     ) -> None:
         self._transport = transport
         self._signer = signer
         self._on_token = on_token
+        self._on_token_expiry = on_token_expiry
         self.token: str | None = None
         self.token_expires_at: int | None = None
 
@@ -101,6 +103,8 @@ class AuthService:
         self.token_expires_at = _token_expiry(result.token)
         if self._on_token is not None:
             self._on_token(result.token)
+        if self._on_token_expiry is not None:
+            self._on_token_expiry(self.token_expires_at)
         return result
 
     def is_token_expired(self, now: float | None = None) -> bool:

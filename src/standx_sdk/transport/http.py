@@ -46,6 +46,7 @@ class HttpTransport:
             self._headers["x-session-id"] = session_id
         self._request_signer = request_signer
         self._rate_limiter = rate_limiter or CreditRateLimiter()
+        self._token_expires_at: int | None = None
         self._closed = False
 
     @property
@@ -54,13 +55,18 @@ class HttpTransport:
         return value.removeprefix("Bearer ") if value else None
 
     def set_token(self, token: str | None) -> None:
+        self._token_expires_at = None
         if token is None:
             self._headers.pop("Authorization", None)
         else:
             self._headers["Authorization"] = f"Bearer {token}"
 
+    def set_token_expiry(self, expires_at: int | None) -> None:
+        self._token_expires_at = expires_at
+
     async def get(self, path: str, *, params: Mapping[str, Any] | None = None) -> Any:
         self._ensure_open()
+        self._ensure_token_valid()
         await self._rate_limiter.acquire()
         try:
             response = await self._client.get(path, params=params, headers=self._headers)
@@ -84,6 +90,7 @@ class HttpTransport:
         params: Mapping[str, Any] | None = None,
     ) -> Any:
         self._ensure_open()
+        self._ensure_token_valid()
         await self._rate_limiter.acquire()
         headers = dict(self._headers)
         if signed:
@@ -163,6 +170,14 @@ class HttpTransport:
             raise StandXError(
                 ErrorCode.PROTOCOL_ERROR,
                 "HTTP transport is closed",
+                retryable=False,
+            )
+
+    def _ensure_token_valid(self) -> None:
+        if self._token_expires_at is not None and time.time() >= self._token_expires_at:
+            raise StandXError(
+                ErrorCode.TOKEN_EXPIRED,
+                "authentication token has expired",
                 retryable=False,
             )
 

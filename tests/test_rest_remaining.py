@@ -48,6 +48,41 @@ def test_authenticated_transport_adds_bearer_impersonate_and_session_headers() -
     assert seen["x-session-id"] == "session-1"
 
 
+def test_http_transport_rejects_expired_token_before_network_request() -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json={"ok": True})
+
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(handler),
+        token="jwt",
+    )
+    transport.set_token_expiry(1)
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(transport.get("/api/query_balance"))
+
+    assert caught.value.code is ErrorCode.TOKEN_EXPIRED
+    assert caught.value.retryable is False
+    assert calls == 0
+
+
+def test_replacing_token_clears_previous_expiry_metadata() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(lambda request: httpx.Response(200, json={"ok": True})),
+        token="jwt",
+    )
+    transport.set_token_expiry(1)
+    transport.set_token("opaque-token")
+
+    assert asyncio.run(transport.get("/api/query_balance")) == {"ok": True}
+
+
 def test_signed_post_adds_standx_request_signature_headers() -> None:
     seen: dict[str, str] = {}
 

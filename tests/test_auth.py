@@ -133,3 +133,13 @@ def test_auth_service_keeps_jwt_expiry_in_memory_and_reports_expiration() -> Non
     assert auth.token_expires_at == 1234
     assert auth.is_token_expired(now=1233.9) is False
     assert auth.is_token_expired(now=1234) is True
+
+    expiries: list[int | None] = []
+    callback_auth = AuthService(
+        JwtTransport(),
+        FakeWallet(chain="bsc", address="0xabc"),
+        on_token_expiry=expiries.append,
+    )
+    asyncio.run(callback_auth.login())
+
+    assert expiries == [1234]
