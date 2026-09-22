@@ -98,7 +98,9 @@ from standx_sdk import ClientConfig, StandXClient, StandXCredentials
 
 credentials = StandXCredentials(
     access_token=official_jwt,
-    request_signing_key=official_ed25519_private_key,
+    request_signing_key=StandXCredentials.decode_request_signing_key(
+        official_ed25519_private_key
+    ),
 )
 client = StandXClient(ClientConfig(base_url="https://perps.standx.com"), credentials=credentials)
 order_stream = client.order_response_stream(session_id="trading-session")
@@ -111,8 +113,10 @@ await order_stream.send_request(
 )
 ```
 
-`request_signing_key` 必须是匹配官方 JWT 的 32 字节 Ed25519 私钥；SDK 不会把
-凭据写入日志或持久化。手工传入 `header` 仍然可以覆盖自动签名结果。
+`decode_request_signing_key` 支持官方凭证常见的 hex、base64/base64url 编码，以及
+Solana 示例中的 64-byte secret key（按官方约定取前 32-byte）。最终私钥必须是匹配
+JWT 的 32-byte Ed25519 key；SDK 不会把凭据写入日志或持久化，也不会对未知长度静默
+截断。手工传入 `header` 仍然可以覆盖自动签名结果。
 
 默认配置使用 StandX 文档中的 REST 和两个 WebSocket endpoint。离线测试可注入自定义 `HttpTransport`，也可以通过 `ClientConfig` 覆盖 endpoint；SDK 不会在测试中访问真实账户。
 
@@ -125,6 +129,10 @@ REST transport 默认启用 StandX credit token-bucket 限流：每次请求 45 
 `new_order` and `cancel_order` responses indicate submission/acceptance, not
 final matching. Use `client.streams.order_response()` with a shared
 `session_id` to correlate asynchronous order responses.
+
+创建 Order Response Stream 后，SDK 会自动把同一个 `session_id` 设置到共享 REST
+transport 的 `x-session-id` 请求头，保证随后 `new_order` / `cancel_order` 请求与
+异步订单响应流关联。若切换到新的 response stream，会以新的 session ID 为准。
 
 For `order:new` and `order:cancel`, the Order Response Stream header must contain
 matching `x-request-id`, a non-empty `x-request-timestamp`, and a non-empty

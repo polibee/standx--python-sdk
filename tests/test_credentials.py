@@ -31,6 +31,26 @@ def test_unified_credentials_reject_invalid_request_signing_key() -> None:
         StandXCredentials(access_token="jwt", request_signing_key=b"short")
 
 
+@pytest.mark.parametrize(
+    ("encoded", "expected"),
+    [
+        (bytes(range(32)).hex(), bytes(range(32))),
+        (base64.b64encode(bytes(range(32))).decode(), bytes(range(32))),
+        (base64.urlsafe_b64encode(bytes(range(32))).decode().rstrip("="), bytes(range(32))),
+        (base64.b64encode(bytes(range(32)) + bytes(range(32))).decode(), bytes(range(32))),
+    ],
+)
+def test_credentials_decode_documented_key_encodings(encoded: str, expected: bytes) -> None:
+    assert StandXCredentials.decode_request_signing_key(encoded) == expected
+
+
+def test_credentials_reject_undefined_key_length_instead_of_truncating() -> None:
+    encoded = base64.b64encode(b"x" * 33).decode()
+
+    with pytest.raises(ValueError, match="32-byte"):
+        StandXCredentials.decode_request_signing_key(encoded)
+
+
 def test_order_response_stream_signs_order_request_from_unified_credentials() -> None:
     credentials = StandXCredentials(
         access_token="official-jwt",

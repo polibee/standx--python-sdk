@@ -240,7 +240,9 @@ Stream 的未确认请求不自动重放，仍保持未知状态并通过 REST �
 作为一个不可变凭据配置传给 `StandXClient(credentials=...)`。Client 会把 JWT 同步
 到 REST 和 Order Response Stream，并把请求签名器注入订单响应流；`order:new`和
 `order:cancel`在未手工传入 headers 时自动按文档格式生成签名。手工 headers 仍可
-覆盖自动生成结果，签名私钥要求为 32 字节原始 Ed25519 key，不写入日志或持久化。
+覆盖自动生成结果。`decode_request_signing_key()`支持官方常见的 hex/base64/base64url
+编码及 Solana 示例的 64-byte secret key 前 32 bytes；未定义长度（例如 33 bytes）
+必须拒绝，不能静默截断。私钥不写入日志或持久化。
 
 `expires_seconds` 必须是正整数，SDK 在发出认证请求前拒绝零、负数、布尔值和浮点值。
 
@@ -482,7 +484,9 @@ OPEN ───────────────> UNKNOWN   (状态事件丢�
 - `fill_qty`和 `qty`用于计算已成交量和剩余量，但不能凭此虚构 `partially_filled`服务端状态；
 - `UNKNOWN`是 SDK 的本地通信状态，不是 StandX 服务端订单状态；
 - `new_order`和 `cancel_order`的 HTTP 成功只代表请求提交/接受，不代表撮合或撤单最终完成；
-- `x-session-id`必须与 Order Response Stream 的 WebSocket `session_id`一致；
+- `x-session-id`必须与 Order Response Stream 的 WebSocket `session_id`一致；创建
+  Order Response Stream 时，Client 自动把该值绑定到共享 REST transport，确保后续
+  `new_order`/`cancel_order`使用一致的 header；切换 stream 时更新绑定值。
 - 订单响应流通过 `request_id`关联请求；request ID 必须非空，仍处于 pending 的 ID 不得复用；缺少或非法响应 envelope 不能清理 pending 状态。用户订单流通过 `id`、`cl_ord_id`和 `updated_at`更新 DTO；
 - 订单恢复必须通过 `/api/query_order`或 `/api/query_orders`重新查询；
 - 重启后不能依赖进程内状态，必须允许从 REST 快照重建。

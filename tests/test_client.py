@@ -95,6 +95,33 @@ def test_client_stream_factories_accept_offline_transports() -> None:
     assert order_response.transport is transport
 
 
+def test_order_response_session_id_is_bound_to_rest_order_requests() -> None:
+    seen: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("x-session-id"))
+        return httpx.Response(200, json={"code": 0, "message": "success", "request_id": "r"})
+
+    rest = HttpTransport(
+        "https://paper.example",
+        httpx.MockTransport(handler),
+        request_signer=Ed25519RequestSigner(bytes(range(32))),
+    )
+    client = StandXClient(
+        ClientConfig(base_url="https://paper.example"),
+        access_token="jwt",
+        request_signer=rest._request_signer,
+        http_transport=rest,
+    )
+
+    client.order_response_stream(session_id="order-session")
+    asyncio.run(
+        client.orders.cancel(cl_ord_id="client-order")
+    )
+
+    assert seen == ["order-session"]
+
+
 class FakeAuthTransport:
     async def post(
         self, path: str, *, params: dict[str, str], json: dict[str, object]

@@ -64,6 +64,16 @@ class HttpTransport:
         else:
             self._headers["Authorization"] = f"Bearer {token}"
 
+    def set_session_id(self, session_id: str | None) -> None:
+        """Bind REST order requests to an Order Response Stream session."""
+
+        if session_id is None:
+            self._headers.pop("x-session-id", None)
+        else:
+            if not session_id.strip():
+                raise ValueError("session_id must not be blank")
+            self._headers["x-session-id"] = session_id
+
     def set_token_expiry(self, expires_at: int | None) -> None:
         self._token_expires_at = expires_at
 

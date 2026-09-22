@@ -24,10 +24,12 @@ class _Streams:
         *,
         token: str | None = None,
         request_signer: RequestSigner | None = None,
+        on_session_id: Callable[[str], None] | None = None,
     ) -> None:
         self._config = config
         self._token = token
         self._request_signer = request_signer
+        self._on_session_id = on_session_id
         self._created: list[MarketStream | OrderResponseStream] = []
         self._closed = False
 
@@ -46,6 +48,8 @@ class _Streams:
     ) -> OrderResponseStream:
         if self._closed:
             raise RuntimeError("closed client cannot create streams")
+        if self._on_session_id is not None:
+            self._on_session_id(session_id)
         stream = OrderResponseStream(
             self._config.order_response_url,
             session_id=session_id,
@@ -124,6 +128,7 @@ class StandXClient:
             config,
             token=self.auth.token,
             request_signer=request_signer,
+            on_session_id=transport.set_session_id,
         )
         self._closed = False
 
