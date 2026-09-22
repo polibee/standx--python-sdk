@@ -76,6 +76,11 @@ class SubscriptionSendFailureTransport(FakeTransport):
         await super().send(message)
 
 
+class DisconnectedReceiveTransport(FakeTransport):
+    async def receive(self) -> str:
+        raise ConnectionError("socket disconnected")
+
+
 def test_market_stream_builds_documented_subscription_envelope() -> None:
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
 
@@ -313,6 +318,36 @@ def test_websocket_transport_passes_ping_configuration(monkeypatch: pytest.Monke
         "ping_interval": 20.0,
         "ping_timeout": 60.0,
     }
+
+
+def test_market_stream_maps_receive_disconnect_to_retryable_sdk_error() -> None:
+    stream = MarketStream(
+        "wss://perps.standx.com/ws-stream/v1", transport=DisconnectedReceiveTransport()  # type: ignore[arg-type]
+    )
+
+    async def scenario() -> None:
+        with pytest.raises(StandXError) as caught:
+            await stream.receive()
+        assert caught.value.code is ErrorCode.WS_DISCONNECTED
+        assert caught.value.retryable is True
+
+    asyncio.run(scenario())
+
+
+def test_order_response_stream_maps_receive_disconnect_to_retryable_sdk_error() -> None:
+    stream = OrderResponseStream(
+        "wss://perps.standx.com/ws-api/v1",
+        session_id="session-1",
+        transport=DisconnectedReceiveTransport(),  # type: ignore[arg-type]
+    )
+
+    async def scenario() -> None:
+        with pytest.raises(StandXError) as caught:
+            await stream.receive()
+        assert caught.value.code is ErrorCode.WS_DISCONNECTED
+        assert caught.value.retryable is True
+
+    asyncio.run(scenario())
 
 
 def test_order_response_stream_builds_documented_request_envelope() -> None:

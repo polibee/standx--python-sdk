@@ -6,6 +6,8 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from websockets.exceptions import WebSocketException
+
 from ..errors import ErrorCode, StandXError
 from ..models.stream import (
     BalanceEvent,
@@ -183,6 +185,12 @@ class MarketStream(StreamBase):
     async def receive(self) -> Any:
         try:
             return json.loads(await self.transport.receive())
+        except (ConnectionError, OSError, TimeoutError, WebSocketException) as exc:
+            raise StandXError(
+                ErrorCode.WS_DISCONNECTED,
+                "Market Stream connection disconnected",
+                retryable=True,
+            ) from exc
         except (json.JSONDecodeError, TypeError) as exc:
             raise StandXError(
                 ErrorCode.PROTOCOL_ERROR,

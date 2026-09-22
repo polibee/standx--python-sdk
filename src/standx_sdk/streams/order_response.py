@@ -6,6 +6,8 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from websockets.exceptions import WebSocketException
+
 from ..errors import ErrorCode, StandXError
 from ..models.order import Order
 from ..models.stream import OrderResponseEvent
@@ -197,6 +199,12 @@ class OrderResponseStream(StreamBase):
     async def receive(self) -> Any:
         try:
             return json.loads(await self.transport.receive())
+        except (ConnectionError, OSError, TimeoutError, WebSocketException) as exc:
+            raise StandXError(
+                ErrorCode.WS_DISCONNECTED,
+                "Order Response Stream connection disconnected",
+                retryable=True,
+            ) from exc
         except (json.JSONDecodeError, TypeError) as exc:
             raise StandXError(
                 ErrorCode.PROTOCOL_ERROR,
