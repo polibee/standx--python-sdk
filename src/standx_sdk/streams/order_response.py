@@ -171,9 +171,28 @@ class OrderResponseStream(StreamBase):
             try:
                 await self.connect()
                 return
-            except (ConnectionError, OSError, TimeoutError, WebSocketException):
-                if attempt == max_attempts - 1:
+            except StandXError as exc:
+                if not exc.retryable or attempt == max_attempts - 1:
                     raise
+                wait = delay if max_delay is None else min(delay, max_delay)
+                if jitter is not None:
+                    wait = jitter(wait)
+                if max_delay is not None:
+                    wait = min(wait, max_delay)
+                if not math.isfinite(wait) or wait < 0:
+                    raise ValueError("jitter must return a finite, non-negative delay")
+                result = pause(wait)
+                if inspect.isawaitable(result):
+                    await result
+                delay *= 2
+            except (ConnectionError, OSError, TimeoutError, WebSocketException) as exc:
+                if attempt == max_attempts - 1:
+                    raise StandXError.from_transport(
+                        ErrorCode.WS_DISCONNECTED,
+                        "Order Response Stream connection failed",
+                        exc,
+                        retryable=True,
+                    ) from exc
                 wait = delay if max_delay is None else min(delay, max_delay)
                 if jitter is not None:
                     wait = jitter(wait)
@@ -208,9 +227,10 @@ class OrderResponseStream(StreamBase):
                 )
             )
         except (ConnectionError, OSError, TimeoutError, WebSocketException) as exc:
-            raise StandXError(
+            raise StandXError.from_transport(
                 ErrorCode.WS_DISCONNECTED,
                 "Order Response Stream connection disconnected while sending",
+                exc,
                 retryable=True,
             ) from exc
 
@@ -238,9 +258,10 @@ class OrderResponseStream(StreamBase):
         try:
             return json.loads(await self.transport.receive())
         except (ConnectionError, OSError, TimeoutError, WebSocketException) as exc:
-            raise StandXError(
+            raise StandXError.from_transport(
                 ErrorCode.WS_DISCONNECTED,
                 "Order Response Stream connection disconnected",
+                exc,
                 retryable=True,
             ) from exc
         except (json.JSONDecodeError, TypeError) as exc:

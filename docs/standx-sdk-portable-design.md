@@ -430,6 +430,9 @@ user order event
 
 ```text
 AUTH_FAILED
+PERMISSION_DENIED
+NOT_FOUND
+SERVER_ERROR
 TOKEN_EXPIRED
 INVALID_SIGNATURE
 RATE_LIMITED
@@ -451,10 +454,26 @@ request_id       客户端或服务端 request ID
 server_code      服务端原始 code，可选
 retryable        是否允许调用方考虑重试
 retry_after      服务端建议等待时间，可选
-cause            原始异常链，可选
+transport_error_type   脱敏的传输分类，可选
+transport_error_types  脱敏的底层异常类型链，可选
+cause            原始异常链，仅供日志关联，不应直接展示
 ```
 
 错误消息不得包含 JWT、私钥、签名、Authorization、完整请求 body 或完整服务端敏感响应。
+
+HTTP 状态必须按以下规则映射，不能把所有状态折叠为同一个通用错误：
+
+| HTTP/网络情况 | SDK code | retryable | 诊断边界 |
+|---|---|---:|---|
+| `401` | `AUTH_FAILED` | 否 | JWT 缺失、无效或已失效 |
+| `403` | `PERMISSION_DENIED` | 否 | 认证成功但权限不足 |
+| `404` | `NOT_FOUND` | 否 | 可能是认证环境、接口版本、域名或凭证类型不匹配；消息应提示调用方检查这些配置 |
+| `408` | `REQUEST_TIMEOUT` | 是 | 服务端请求超时 |
+| `429` | `RATE_LIMITED` | 是 | 保留合法 `Retry-After` |
+| `5xx` | `SERVER_ERROR` | 是 | StandX 服务端异常 |
+| DNS/TLS/代理/连接失败 | `PROTOCOL_ERROR`（REST）或 `WS_DISCONNECTED`（WebSocket） | 通常是 | 通过 `transport_error_type` 区分 `DNS error`、`TLS error`、`ProxyError`、`ConnectTimeout`、`ReadTimeout`、`RemoteDisconnect` 等 |
+
+底层异常类型只记录类型名和有限长度的异常链，不记录 URL、Authorization、JWT、私钥、签名或异常原文。调用方应优先依据 `code` 和 `retryable` 决策，再使用 `transport_error_type` 定位 DNS、TLS、代理或远端断开问题。
 
 ## 10. 重试和限流
 

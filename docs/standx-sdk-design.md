@@ -278,9 +278,9 @@ RestTransport
 - 映射超时、连接错误、HTTP 错误和 JSON 错误；
 - 记录脱敏诊断信息。
 
-`HttpTransport`使用 `ClientConfig.timeout_seconds`创建 `httpx.AsyncClient`。网络超时映射为可重试的 `REQUEST_TIMEOUT`；HTTP 400/401/403/408/429/5xx分别映射为验证、认证、超时、限流或协议错误，并尽可能保留响应中的 `message`、`x-request-id`/`request_id`和非负有限的 `retry-after` 秒数。非法、负数或非有限 `retry-after` 会被忽略，不会覆盖原本的 `RATE_LIMITED`/其他 HTTP 错误。`aclose()`幂等；关闭后的请求统一返回不可重试的 `PROTOCOL_ERROR`，不泄漏底层 httpx 生命周期异常。
+`HttpTransport`使用 `ClientConfig.timeout_seconds`创建 `httpx.AsyncClient`。网络超时映射为可重试的 `REQUEST_TIMEOUT`；HTTP 400/401/403/404/408/429/5xx分别映射为验证、认证、权限不足、资源/配置不匹配、超时、限流或服务端错误：`401 -> AUTH_FAILED`、`403 -> PERMISSION_DENIED`、`404 -> NOT_FOUND`、`5xx -> SERVER_ERROR`。401/403/404 不自动重试，5xx 可重试。尽可能保留响应中的 `message`、`x-request-id`/`request_id`和非负有限的 `retry-after` 秒数。非法、负数或非有限 `retry-after` 会被忽略，不会覆盖原本的 `RATE_LIMITED`/其他 HTTP 错误。`aclose()`幂等；关闭后的请求统一返回不可重试的 `PROTOCOL_ERROR`，不泄漏底层 httpx 生命周期异常。
 
-HTTP 连接失败映射为可重试的 `PROTOCOL_ERROR`，不把底层 URL、Authorization 或请求体写入错误消息。
+HTTP 连接失败映射为可重试的 `PROTOCOL_ERROR`，并在 `StandXError.transport_error_type` 与 `transport_error_types` 中保留脱敏的底层类型，用于区分 `DNS error`、`TLS error`、代理错误、连接/读取超时和远端断开；不把底层 URL、Authorization、JWT、签名或请求体写入错误消息。
 
 创建订单、单笔撤单和批量撤单的 HTTP 超时会转换为不可自动重试的 `ORDER_UNKNOWN`，调用方必须先按订单标识查询或通过 Order Response Stream 确认再决定后续动作；其他 REST 成功响应的非法 JSON 统一转换为不可重试的 `PROTOCOL_ERROR`。
 
@@ -623,6 +623,9 @@ Order Response Stream 的 pending 恢复也必须复用同一 `cl_ord_id` 锁，
 ```python
 class ErrorCode(str, Enum):
     AUTH_FAILED = "AUTH_FAILED"
+    PERMISSION_DENIED = "PERMISSION_DENIED"
+    NOT_FOUND = "NOT_FOUND"
+    SERVER_ERROR = "SERVER_ERROR"
     TOKEN_EXPIRED = "TOKEN_EXPIRED"
     INVALID_SIGNATURE = "INVALID_SIGNATURE"
     RATE_LIMITED = "RATE_LIMITED"
@@ -642,6 +645,7 @@ class ErrorCode(str, Enum):
 - `request_id`；
 - `retryable`；
 - 可选的服务端原始错误码；
+- 可选的 `transport_error_type` 和 `transport_error_types`，只包含脱敏的异常类型名；
 - 不包含私钥、token 或完整敏感请求体。
 
 ## 11. 重试与限流

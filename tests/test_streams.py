@@ -414,6 +414,27 @@ def test_websocket_transport_passes_ping_configuration(monkeypatch: pytest.Monke
     }
 
 
+def test_websocket_transport_records_connect_failure_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_connect(endpoint: str, **kwargs: object) -> object:
+        raise ConnectionError("private connection detail")
+
+    import standx_sdk.transport.websocket as websocket_module
+
+    monkeypatch.setattr(websocket_module.websockets, "connect", fake_connect)
+    transport = WebSocketTransport("wss://example.test/ws")
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(transport.connect())
+
+    assert caught.value.code is ErrorCode.WS_DISCONNECTED
+    assert caught.value.retryable is True
+    assert caught.value.transport_error_type == "ConnectionError"
+    assert caught.value.transport_error_types == ("ConnectionError",)
+    assert "private connection detail" not in caught.value.message
+
+
 def test_websocket_transport_rejects_non_finite_ping_configuration() -> None:
     for kwargs in (
         {"ping_interval": math.nan},
@@ -436,6 +457,7 @@ def test_market_stream_maps_receive_disconnect_to_retryable_sdk_error() -> None:
             await stream.receive()
         assert caught.value.code is ErrorCode.WS_DISCONNECTED
         assert caught.value.retryable is True
+        assert caught.value.transport_error_type == "ConnectionError"
 
     asyncio.run(scenario())
 
@@ -452,6 +474,7 @@ def test_order_response_stream_maps_receive_disconnect_to_retryable_sdk_error() 
             await stream.receive()
         assert caught.value.code is ErrorCode.WS_DISCONNECTED
         assert caught.value.retryable is True
+        assert caught.value.transport_error_type == "ConnectionError"
 
     asyncio.run(scenario())
 

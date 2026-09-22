@@ -249,6 +249,22 @@ live = ClientConfig(
 SDK 不会自动推断 LIVE 凭证、不保存私钥，也不实现钱包资金操作。交易机器人建议只开启
 API Token 的 `Trade` 权限并关闭 `Withdraw` 权限。
 
+## 错误诊断
+
+`StandXError.code` 是稳定且适合程序判断的错误码：`401` 映射为 `AUTH_FAILED`，`403` 映射为
+`PERMISSION_DENIED`，`404` 映射为 `NOT_FOUND`（检查认证环境、接口版本、域名或凭证类型），
+`5xx` 映射为 `SERVER_ERROR`。`retryable` 表示是否可以考虑重试。网络失败时，
+`transport_error_type` 会提供脱敏后的原因，例如 `DNS error`、`TLS error`、`ProxyError`、
+`ConnectTimeout`、`ReadTimeout` 或 `RemoteDisconnect`。错误信息不会包含 JWT、私钥、认证头、
+URL 或完整底层异常文本。
+
+```python
+try:
+    await client.markets.overview()
+except StandXError as exc:
+    print(exc.code, exc.retryable, exc.transport_error_type)
+```
+
 ## 开发和验证
 
 ```bash

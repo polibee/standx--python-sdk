@@ -735,6 +735,35 @@ def test_http_transport_maps_auth_and_validation_errors() -> None:
     assert auth.value.message == "token expired"
 
 
+@pytest.mark.parametrize(
+    ("status", "expected_code", "retryable"),
+    [
+        (401, ErrorCode.AUTH_FAILED, False),
+        (403, ErrorCode.PERMISSION_DENIED, False),
+        (404, ErrorCode.NOT_FOUND, False),
+        (500, ErrorCode.SERVER_ERROR, True),
+        (503, ErrorCode.SERVER_ERROR, True),
+    ],
+)
+def test_http_transport_classifies_auth_routing_and_server_statuses(
+    status: int, expected_code: ErrorCode, retryable: bool
+) -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(status, json={})
+
+    transport = HttpTransport("https://perps.standx.com", httpx.MockTransport(handler))
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(transport.get("/status"))
+
+    assert caught.value.code is expected_code
+    assert caught.value.retryable is retryable
+    if status == 404:
+        assert "environment" in caught.value.message
+        assert "API version" in caught.value.message
+    if status >= 500:
+        assert caught.value.message == "StandX server error"
+
+
 def test_http_transport_maps_network_timeout_and_uses_configured_timeout() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("timed out", request=request)
@@ -748,6 +777,8 @@ def test_http_transport_maps_network_timeout_and_uses_configured_timeout() -> No
     assert transport.timeout_seconds == 2.5
     assert caught.value.code is ErrorCode.REQUEST_TIMEOUT
     assert caught.value.retryable is True
+    assert caught.value.transport_error_type == "ReadTimeout"
+    assert caught.value.transport_error_types == ("ReadTimeout",)
 
 
 def test_http_transport_maps_successful_invalid_json_to_protocol_error() -> None:
@@ -774,6 +805,8 @@ def test_http_transport_maps_connection_error_to_retryable_protocol_error() -> N
 
     assert caught.value.code is ErrorCode.PROTOCOL_ERROR
     assert caught.value.retryable is True
+    assert caught.value.transport_error_type == "ConnectError"
+    assert caught.value.transport_error_types == ("ConnectError",)
 
 
 def test_http_transport_acquires_credit_before_each_request() -> None:

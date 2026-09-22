@@ -250,6 +250,23 @@ live = ClientConfig(
 The SDK does not infer LIVE credentials, store keys, or implement wallet funding. Use a
 least-privilege API Token with `Trade` enabled and `Withdraw` disabled for trading bots.
 
+## Error diagnosis
+
+`StandXError.code` is stable and safe to branch on: `401` becomes `AUTH_FAILED`, `403` becomes
+`PERMISSION_DENIED`, `404` becomes `NOT_FOUND` (check environment, API version, domain, or
+credential type), and `5xx` becomes `SERVER_ERROR`. `retryable` indicates whether a retry can be
+considered. For network failures, `transport_error_type` identifies the sanitized cause, such as
+`DNS error`, `TLS error`, `ProxyError`, `ConnectTimeout`, `ReadTimeout`, or `RemoteDisconnect`.
+The SDK never includes JWTs, private keys, authorization headers, URLs, or raw exception text in
+these diagnostic messages.
+
+```python
+try:
+    await client.markets.overview()
+except StandXError as exc:
+    print(exc.code, exc.retryable, exc.transport_error_type)
+```
+
 ## Development and verification
 
 ```bash

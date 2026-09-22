@@ -5,6 +5,9 @@ from typing import Any
 
 import websockets
 from websockets.asyncio.client import ClientConnection
+from websockets.exceptions import WebSocketException
+
+from ..errors import ErrorCode, StandXError
 
 
 class WebSocketTransport:
@@ -33,12 +36,20 @@ class WebSocketTransport:
         self.connection: ClientConnection | None = None
 
     async def connect(self) -> ClientConnection:
-        self.connection = await websockets.connect(
-            self.endpoint,
-            additional_headers=self.headers,
-            ping_interval=self.ping_interval,
-            ping_timeout=self.ping_timeout,
-        )
+        try:
+            self.connection = await websockets.connect(
+                self.endpoint,
+                additional_headers=self.headers,
+                ping_interval=self.ping_interval,
+                ping_timeout=self.ping_timeout,
+            )
+        except (ConnectionError, OSError, TimeoutError, WebSocketException) as exc:
+            raise StandXError.from_transport(
+                ErrorCode.WS_DISCONNECTED,
+                "WebSocket connection failed",
+                exc,
+                retryable=True,
+            ) from exc
         return self.connection
 
     async def send(self, message: str) -> None:

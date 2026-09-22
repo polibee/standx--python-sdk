@@ -43,6 +43,9 @@ All notable changes to this project are documented here.
 - Wired `StandXClient` order creation to fetch and cache symbol rules before local validation when rules are omitted.
 - Added a typed Order Response Stream `authenticate()` helper for documented `auth:login` requests.
 - Normalized malformed order list and submission DTO envelopes to `PROTOCOL_ERROR`.
+- Added stable `PERMISSION_DENIED`, `NOT_FOUND`, and `SERVER_ERROR` mappings for HTTP 403, 404,
+  and 5xx responses, plus sanitized transport diagnostics for DNS, TLS, proxy, timeout, and
+  remote-disconnect failures across REST and WebSocket transports.
 - Normalized malformed account, position, trade, and funding list envelopes to `PROTOCOL_ERROR`.
 - Added typed Kline history, server-time, and health-check market APIs with strict response validation.
 - Hardened recent public-trade list envelopes and boolean field validation.

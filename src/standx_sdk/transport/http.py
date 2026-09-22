@@ -104,12 +104,12 @@ class HttpTransport:
         try:
             response = await self._client.get(path, params=params, headers=self._headers)
         except httpx.TimeoutException as exc:
-            raise StandXError(
-                ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", retryable=True
+            raise StandXError.from_transport(
+                ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", exc, retryable=True
             ) from exc
         except httpx.NetworkError as exc:
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", retryable=True
+            raise StandXError.from_transport(
+                ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", exc, retryable=True
             ) from exc
         try:
             self._raise_for_status(response)
@@ -134,12 +134,12 @@ class HttpTransport:
         try:
             response = await self._client.get(path, params=params, headers=self._headers)
         except httpx.TimeoutException as exc:
-            raise StandXError(
-                ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", retryable=True
+            raise StandXError.from_transport(
+                ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", exc, retryable=True
             ) from exc
         except httpx.NetworkError as exc:
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", retryable=True
+            raise StandXError.from_transport(
+                ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", exc, retryable=True
             ) from exc
         self._raise_for_status(response)
         return response.text
@@ -171,12 +171,12 @@ class HttpTransport:
         try:
             response = await self._client.post(path, json=json, params=params, headers=headers)
         except httpx.TimeoutException as exc:
-            raise StandXError(
-                ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", retryable=True
+            raise StandXError.from_transport(
+                ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", exc, retryable=True
             ) from exc
         except httpx.NetworkError as exc:
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", retryable=True
+            raise StandXError.from_transport(
+                ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", exc, retryable=True
             ) from exc
         self._raise_for_status(response)
         return self._decode_json(response)
@@ -199,17 +199,28 @@ class HttpTransport:
         code_by_status = {
             400: ErrorCode.VALIDATION_ERROR,
             401: ErrorCode.AUTH_FAILED,
-            403: ErrorCode.AUTH_FAILED,
+            403: ErrorCode.PERMISSION_DENIED,
+            404: ErrorCode.NOT_FOUND,
             408: ErrorCode.REQUEST_TIMEOUT,
             429: ErrorCode.RATE_LIMITED,
         }
-        code = code_by_status.get(response.status_code, ErrorCode.PROTOCOL_ERROR)
+        code = code_by_status.get(
+            response.status_code,
+            ErrorCode.SERVER_ERROR if response.status_code >= 500 else ErrorCode.PROTOCOL_ERROR,
+        )
         retryable = response.status_code in {408, 429} or response.status_code >= 500
         try:
             payload = response.json()
         except ValueError:
             payload = {}
         message = payload.get("message") if isinstance(payload, dict) else None
+        if response.status_code == 404 and not message:
+            message = (
+                "resource not found; check the StandX environment, API version, "
+                "domain, or credential type"
+            )
+        elif response.status_code >= 500 and not message:
+            message = "StandX server error"
         request_id = response.headers.get("x-request-id")
         if isinstance(payload, dict) and isinstance(payload.get("request_id"), str):
             request_id = payload["request_id"]
