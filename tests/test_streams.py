@@ -396,6 +396,36 @@ def test_stream_protocol_errors_use_stable_sdk_error_code() -> None:
     assert market_error.value.code is ErrorCode.PROTOCOL_ERROR
 
 
+def test_market_stream_normalizes_missing_required_fields_to_protocol_error() -> None:
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
+
+    with pytest.raises(StandXError) as caught:
+        stream.decode({"channel": "price", "data": {"symbol": "BTC-USD"}})
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+
+def test_market_stream_normalizes_invalid_decimal_to_protocol_error() -> None:
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
+
+    with pytest.raises(StandXError) as caught:
+        stream.decode(
+            {
+                "channel": "price",
+                "data": {"symbol": "BTC-USD", "last_price": "not-a-decimal"},
+            }
+        )
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+
+def test_market_stream_keeps_unknown_channel_as_value_error() -> None:
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
+
+    with pytest.raises(ValueError, match="unsupported StandX Market Stream channel"):
+        stream.decode({"channel": "unknown", "data": {}})
+
+
 def test_order_response_rejects_response_from_different_session() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
 

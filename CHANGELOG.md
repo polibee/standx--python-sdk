@@ -31,6 +31,7 @@ All notable changes to this project are documented here.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.
+- Normalized malformed Market Stream DTO payloads to the stable protocol error while preserving unknown-channel validation.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.

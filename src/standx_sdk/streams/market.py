@@ -186,6 +186,20 @@ class MarketStream(StreamBase):
 
     def decode(self, message: dict[str, Any]) -> Any:
         channel = message.get("channel")
+        if isinstance(channel, str) and channel not in _SUPPORTED_CHANNELS:
+            raise ValueError(f"unsupported StandX Market Stream channel: {channel}")
+        try:
+            return self._decode(message)
+        except StandXError:
+            raise
+        except (ArithmeticError, IndexError, KeyError, OverflowError, TypeError, ValueError) as exc:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "invalid StandX Market Stream message data",
+            ) from exc
+
+    def _decode(self, message: dict[str, Any]) -> Any:
+        channel = message.get("channel")
         data = message.get("data")
         raw_seq = message.get("seq")
         if raw_seq is not None and (isinstance(raw_seq, bool) or not isinstance(raw_seq, int)):
@@ -342,3 +356,12 @@ def _levels(value: Any) -> tuple[tuple[Any, Any], ...]:
 
 
 _USER_CHANNELS = {"order", "position", "balance", "trade"}
+_SUPPORTED_CHANNELS = {
+    "price",
+    "depth_book",
+    "public_trade",
+    "order",
+    "position",
+    "balance",
+    "trade",
+}
