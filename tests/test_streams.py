@@ -596,6 +596,29 @@ def test_order_response_resolve_rejects_malformed_response_without_clearing_pend
     assert stream.pending_request_ids == {"request-1"}
 
 
+@pytest.mark.parametrize("field", ["message", "status"])
+def test_order_response_rejects_non_string_optional_fields_without_clearing_pending(
+    field: str,
+) -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+    stream.request(
+        "order:new",
+        {"cl_ord_id": "client-1"},
+        request_id="request-1",
+        header={
+            "x-request-id": "request-1",
+            "x-request-timestamp": "1700000000000",
+            "x-request-signature": "signature",
+        },
+    )
+
+    with pytest.raises(StandXError) as caught:
+        stream.decode_response({"request_id": "request-1", "code": 0, field: 123})
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert stream.pending_request_ids == {"request-1"}
+
+
 def test_order_response_resolve_rejects_a_different_session_without_clearing_pending() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
     stream.request(

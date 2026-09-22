@@ -570,7 +570,7 @@ Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`me
 
 `OrderResponseStream.decode_response()`将文档中的响应映射为 `OrderResponseEvent`：`status=accepted`映射为 `accepted`，`code=0`且无 accepted 状态映射为 `success`，`code>=400`映射为 `rejected`，其他情况保留为 `unknown`。解码后只清理对应的 pending request，不会把断线中的 `order:new`或`order:cancel`重新发送，避免产生重复外部副作用。
 
-Order Response 响应缺少 `request_id`、session 不匹配、缺少 `code` 或 `code` 不是 JSON 整数时，必须统一转换为 `StandXError(code=PROTOCOL_ERROR)`，并在可识别时保留 `request_id`；不能向公共 API 泄漏原生 JSON/类型转换异常。
+Order Response 响应缺少 `request_id`、session 不匹配、缺少 `code` 或 `code` 不是 JSON 整数、存在但不是字符串的 `status`/`message` 时，必须统一转换为 `StandXError(code=PROTOCOL_ERROR)`，并在可识别时保留 `request_id`；协议错误不能清理 pending request，也不能向公共 API 泄漏原生 JSON/类型转换异常。
 
 订单响应流必须使用 `session_id + request_id`做关联，不能只使用单一 request ID。断线期间未确认的请求不能自动判定为成功或失败，应进入本地未知状态并由 REST 查询恢复。如果响应包含 `session_id`，必须与当前 stream 的 `session_id`一致；不一致统一报 `PROTOCOL_ERROR`，并保留响应中的 `request_id`，且不得清理 pending request。HTTP 错误同时保留服务端原始 `code` 到 `StandXError.server_code`，公共 `code` 仍使用 SDK 稳定错误码。
 

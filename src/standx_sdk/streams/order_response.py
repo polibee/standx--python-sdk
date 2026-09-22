@@ -70,63 +70,13 @@ class OrderResponseStream(StreamBase):
         }
 
     def resolve(self, response: dict[str, Any]) -> dict[str, Any]:
-        if not isinstance(response, dict):
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR,
-                "Order Response envelope must be an object",
-            )
-        request_id = response.get("request_id")
-        if not isinstance(request_id, str):
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR,
-                "Order Response is missing request_id",
-            )
-        response_session_id = response.get("session_id")
-        if response_session_id is not None and response_session_id != self.session_id:
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR,
-                "Order Response session_id does not match stream session",
-                request_id=request_id,
-            )
-        raw_code = response.get("code")
-        if isinstance(raw_code, bool) or not isinstance(raw_code, int):
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR,
-                "Order Response code must be an integer",
-                request_id=request_id,
-            )
+        request_id, _, _, _ = _validate_response(response, self.session_id)
         self._pending_request_ids.discard(request_id)
         self._pending_requests.pop(request_id, None)
         return response
 
     def decode_response(self, response: dict[str, Any]) -> OrderResponseEvent:
-        if not isinstance(response, dict):
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR,
-                "Order Response envelope must be an object",
-            )
-        request_id = response.get("request_id")
-        if not isinstance(request_id, str):
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR,
-                "Order Response is missing request_id",
-            )
-        response_session_id = response.get("session_id")
-        if response_session_id is not None and response_session_id != self.session_id:
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR,
-                "Order Response session_id does not match stream session",
-                request_id=request_id,
-            )
-        raw_code = response.get("code")
-        if isinstance(raw_code, bool) or not isinstance(raw_code, int):
-            raise StandXError(
-                ErrorCode.PROTOCOL_ERROR,
-                "Order Response code must be an integer",
-                request_id=request_id,
-            )
-        code = raw_code
-        status = response.get("status")
+        request_id, code, status, message = _validate_response(response, self.session_id)
         if status == "accepted":
             state = "accepted"
         elif code >= 400:
@@ -140,7 +90,7 @@ class OrderResponseStream(StreamBase):
             request_id=request_id,
             code=code,
             state=state,
-            message=response.get("message") if isinstance(response.get("message"), str) else None,
+            message=message,
         )
 
     async def recover_pending(
@@ -266,3 +216,48 @@ class OrderResponseStream(StreamBase):
     async def close_async(self) -> None:
         self.close()
         await self.transport.close()
+
+
+def _validate_response(
+    response: object, session_id: str
+) -> tuple[str, int, str | None, str | None]:
+    if not isinstance(response, dict):
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "Order Response envelope must be an object",
+        )
+    request_id = response.get("request_id")
+    if not isinstance(request_id, str):
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "Order Response is missing request_id",
+        )
+    response_session_id = response.get("session_id")
+    if response_session_id is not None and response_session_id != session_id:
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "Order Response session_id does not match stream session",
+            request_id=request_id,
+        )
+    raw_code = response.get("code")
+    if isinstance(raw_code, bool) or not isinstance(raw_code, int):
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "Order Response code must be an integer",
+            request_id=request_id,
+        )
+    status = response.get("status")
+    if status is not None and not isinstance(status, str):
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "Order Response status must be a string",
+            request_id=request_id,
+        )
+    message = response.get("message")
+    if message is not None and not isinstance(message, str):
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "Order Response message must be a string",
+            request_id=request_id,
+        )
+    return request_id, raw_code, status, message
