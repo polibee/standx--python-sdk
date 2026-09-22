@@ -30,6 +30,7 @@ All notable changes to this project are documented here.
 - Preserved Market Stream authentication streams across reconnects and cleared stale auth state after reconnect failures.
 - Rejected non-finite numeric values in REST and Market Stream DTO decoding as protocol errors.
 - Enforced locally tracked JWT expiry before authenticated REST requests with a stable `TOKEN_EXPIRED` error.
+- Added explicit `RetryPolicy` backoff with `retry-after` support; REST retries remain opt-in.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.

@@ -11,6 +11,7 @@ import httpx
 
 from ..errors import ErrorCode, StandXError
 from ..resilience.rate_limit import CreditRateLimiter
+from ..resilience.retry import RetryPolicy
 
 
 class RequestSigner(Protocol):
@@ -64,7 +65,15 @@ class HttpTransport:
     def set_token_expiry(self, expires_at: int | None) -> None:
         self._token_expires_at = expires_at
 
-    async def get(self, path: str, *, params: Mapping[str, Any] | None = None) -> Any:
+    async def get(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        retry_policy: RetryPolicy | None = None,
+    ) -> Any:
+        if retry_policy is not None:
+            return await retry_policy.execute(lambda: self.get(path, params=params))
         self._ensure_open()
         self._ensure_token_valid()
         await self._rate_limiter.acquire()
@@ -88,7 +97,12 @@ class HttpTransport:
         json: Mapping[str, object],
         signed: bool = False,
         params: Mapping[str, Any] | None = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> Any:
+        if retry_policy is not None:
+            return await retry_policy.execute(
+                lambda: self.post(path, json=json, signed=signed, params=params)
+            )
         self._ensure_open()
         self._ensure_token_valid()
         await self._rate_limiter.acquire()

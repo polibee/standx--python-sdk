@@ -12,6 +12,7 @@ from standx_sdk.models.account import BalanceSnapshot, PositionSnapshot
 from standx_sdk.models.order import MarginMode, Order
 from standx_sdk.models.trade import FundingPayment, FundingRate, UserTrade
 from standx_sdk.resilience.rate_limit import CreditRateLimiter
+from standx_sdk.resilience.retry import RetryPolicy
 from standx_sdk.transport.http import HttpTransport
 
 
@@ -81,6 +82,28 @@ def test_replacing_token_clears_previous_expiry_metadata() -> None:
     transport.set_token("opaque-token")
 
     assert asyncio.run(transport.get("/api/query_balance")) == {"ok": True}
+
+
+def test_http_transport_retries_get_only_when_policy_is_explicitly_provided() -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(429, headers={"retry-after": "0"}, json={"message": "slow"})
+        return httpx.Response(200, json={"ok": True})
+
+    async def sleep(delay: float) -> None:
+        assert delay == 0
+
+    transport = HttpTransport("https://perps.standx.com", httpx.MockTransport(handler))
+    result = asyncio.run(
+        transport.get("/api/query_balance", retry_policy=RetryPolicy(sleep=sleep))
+    )
+
+    assert result == {"ok": True}
+    assert calls == 2
 
 
 def test_signed_post_adds_standx_request_signature_headers() -> None:
