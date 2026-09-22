@@ -37,6 +37,10 @@ async def main() -> None:
 
         rules = await client.markets.symbol_info("BTC-USD")
         balance = await client.account.balance()
+        candles = await client.markets.kline_history(
+            "BTC-USD", 1700000000, 1700003600, "5", countback=12
+        )
+        server_time = await client.markets.server_time()
         positions = await client.positions.list(symbol="BTC-USD")
         trades = await client.trades.list(symbol="BTC-USD", limit=50)
 
@@ -106,6 +110,8 @@ generate it with the documented request-signing flow.
 Order Response Stream 的 `accepted` 只表示网关接受请求；最终订单状态仍需读取用户订单流或通过 REST 查询恢复。断线重连不会自动重复发送创建订单或撤单请求。
 
 登录成功后 token 会自动同步到客户端共享的 REST transport。异步应用退出时调用 `await client.close_async()` 释放 HTTP 和 WebSocket 资源。
+
+市场 K 线使用文档定义的分辨率（例如 `1T`、`3S`、`1`、`5`、`15`、`60`、`1D`、`1W`、`1M`）；SDK 会校验并行数组长度和有限 Decimal 数值。`client.markets.health()`只接受服务端纯文本 `OK`，否则返回 `PROTOCOL_ERROR`。
 
 也可以使用异步上下文管理器自动释放资源：
 

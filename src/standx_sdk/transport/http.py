@@ -90,6 +90,28 @@ class HttpTransport:
         self._raise_for_status(response)
         return self._decode_json(response)
 
+    async def get_text(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+    ) -> str:
+        self._ensure_open()
+        self._ensure_token_valid()
+        await self._rate_limiter.acquire()
+        try:
+            response = await self._client.get(path, params=params, headers=self._headers)
+        except httpx.TimeoutException as exc:
+            raise StandXError(
+                ErrorCode.REQUEST_TIMEOUT, "HTTP request timed out", retryable=True
+            ) from exc
+        except httpx.NetworkError as exc:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", retryable=True
+            ) from exc
+        self._raise_for_status(response)
+        return response.text
+
     async def post(
         self,
         path: str,

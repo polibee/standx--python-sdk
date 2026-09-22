@@ -7,6 +7,9 @@ from ..errors import ErrorCode, StandXError
 from ..models.market import (
     DepthBook,
     InstrumentRules,
+    KlineBar,
+    KlineHistory,
+    KlineResolution,
     MarketOverview,
     MarketOverviewSymbol,
     SymbolMarket,
@@ -128,6 +131,44 @@ class MarketsApi:
     ) -> list[RecentTrade]:
         return await self.recent_trades(symbol, limit=limit)
 
+    async def server_time(self) -> int:
+        value = await self._transport.get("/api/kline/time")
+        return _protocol_decode("kline_time", lambda: _server_time(value))
+
+    async def kline_history(
+        self,
+        symbol: str,
+        from_time: int,
+        to_time: int,
+        resolution: KlineResolution | str,
+        *,
+        countback: int | None = None,
+    ) -> KlineHistory:
+        resolution_value = _kline_parameters(
+            symbol, from_time, to_time, resolution, countback
+        )
+        response = await self._transport.get(
+            "/api/kline/history",
+            params={
+                "symbol": symbol,
+                "from": from_time,
+                "to": to_time,
+                "resolution": resolution_value,
+                **({"countback": countback} if countback is not None else {}),
+            },
+        )
+        return _protocol_decode("kline_history", lambda: _kline_history(response))
+
+    async def health(self) -> str:
+        value = await self._transport.get_text("/api/health")
+        if value != "OK":
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "malformed response from health",
+                retryable=False,
+            )
+        return value
+
 
 __all__ = ["MarketsApi"]
 
@@ -170,6 +211,57 @@ def _instrument_rules(values: list[dict[str, Any]]) -> InstrumentRules:
         created_at=value.get("created_at") if isinstance(value.get("created_at"), str) else None,
         updated_at=value.get("updated_at") if isinstance(value.get("updated_at"), str) else None,
     )
+
+
+def _server_time(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise TypeError("server time must be a non-negative JSON integer")
+    return value
+
+
+def _kline_parameters(
+    symbol: str,
+    from_time: int,
+    to_time: int,
+    resolution: KlineResolution | str,
+    countback: int | None,
+) -> str:
+    if not symbol:
+        raise ValueError("symbol must not be empty")
+    if isinstance(from_time, bool) or not isinstance(from_time, int) or from_time < 0:
+        raise ValueError("from_time must be a non-negative integer")
+    if isinstance(to_time, bool) or not isinstance(to_time, int) or to_time <= from_time:
+        raise ValueError("to_time must be greater than from_time")
+    resolution_value = resolution.value if isinstance(resolution, KlineResolution) else resolution
+    if resolution_value not in {item.value for item in KlineResolution}:
+        raise ValueError("unsupported kline resolution")
+    if countback is not None and (
+        isinstance(countback, bool) or not isinstance(countback, int) or countback <= 0
+    ):
+        raise ValueError("countback must be a positive integer")
+    return resolution_value
+
+
+def _kline_history(value: object) -> KlineHistory:
+    if not isinstance(value, dict) or value.get("s") != "ok":
+        raise TypeError("kline response status was not ok")
+    arrays = [value[key] for key in ("t", "c", "o", "h", "l", "v")]
+    if not all(isinstance(array, list) for array in arrays):
+        raise TypeError("kline response arrays are malformed")
+    if len({len(array) for array in arrays}) != 1:
+        raise ValueError("kline response arrays have different lengths")
+    bars = tuple(
+        KlineBar(
+            time=_server_time(timestamp),
+            close=finite_decimal(close),
+            open=finite_decimal(open_price),
+            high=finite_decimal(high),
+            low=finite_decimal(low),
+            volume=finite_decimal(volume),
+        )
+        for timestamp, close, open_price, high, low, volume in zip(*arrays, strict=True)
+    )
+    return KlineHistory(status="ok", bars=bars)
 
 
 def _market_overview(response: dict[str, Any]) -> MarketOverview:

@@ -2,6 +2,35 @@
 
 from dataclasses import dataclass
 from decimal import Decimal
+from enum import StrEnum
+
+
+class KlineResolution(StrEnum):
+    TICK = "1T"
+    THREE_SECONDS = "3S"
+    ONE_MINUTE = "1"
+    FIVE_MINUTES = "5"
+    FIFTEEN_MINUTES = "15"
+    SIXTY_MINUTES = "60"
+    ONE_DAY = "1D"
+    ONE_WEEK = "1W"
+    ONE_MONTH = "1M"
+
+
+@dataclass(frozen=True, slots=True)
+class KlineBar:
+    time: int
+    close: Decimal
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    volume: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class KlineHistory:
+    status: str
+    bars: tuple[KlineBar, ...]
 
 
 @dataclass(frozen=True, slots=True)
