@@ -97,7 +97,12 @@ class OrdersApi:
             for key, value in {"order_id": order_id, "cl_ord_id": cl_ord_id}.items()
             if value is not None
         }
-        response = await self._transport.post("/api/cancel_order", json=body, signed=True)
+        try:
+            response = await self._transport.post("/api/cancel_order", json=body, signed=True)
+        except StandXError as exc:
+            if exc.code is not ErrorCode.REQUEST_TIMEOUT:
+                raise
+            raise _unknown_order_error(exc, "cancel order") from exc
         return _protocol_decode("cancel_order", lambda: self._result(response))
 
     async def cancel_many(
@@ -110,7 +115,12 @@ class OrdersApi:
             body["order_id_list"] = order_ids
         if cl_ord_ids:
             body["cl_ord_id_list"] = cl_ord_ids
-        response = await self._transport.post("/api/cancel_orders", json=body, signed=True)
+        try:
+            response = await self._transport.post("/api/cancel_orders", json=body, signed=True)
+        except StandXError as exc:
+            if exc.code is not ErrorCode.REQUEST_TIMEOUT:
+                raise
+            raise _unknown_order_error(exc, "cancel orders") from exc
         return _protocol_decode("cancel_orders", lambda: self._result(response))
 
     async def query_order(
@@ -190,6 +200,16 @@ def _protocol_decode(endpoint: str, decoder: Callable[[], _T]) -> _T:
             f"malformed response from {endpoint}",
             retryable=False,
         ) from exc
+
+
+def _unknown_order_error(error: StandXError, operation: str) -> StandXError:
+    return StandXError(
+        ErrorCode.ORDER_UNKNOWN,
+        f"{operation} request timed out; query the order before retrying",
+        request_id=error.request_id,
+        retryable=False,
+        server_code=error.server_code,
+    )
 
 
 def _query_params(**values: object) -> dict[str, object]:

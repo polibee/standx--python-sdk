@@ -35,6 +35,7 @@ All notable changes to this project are documented here.
 - Added order reconciliation watermarks to prevent stale user events or REST snapshots overwriting newer state.
 - Serialized open-order restoration with per-order locks and freshness checks.
 - Hardened configuration and transport boundaries against non-finite timeouts and empty WebSocket endpoints.
+- Mapped single and bulk cancel timeouts to non-retryable `ORDER_UNKNOWN` to prevent duplicate cancellation requests.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.

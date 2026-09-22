@@ -172,6 +172,30 @@ def test_new_order_timeout_maps_to_unknown_order_state() -> None:
     assert "query" in caught.value.message
 
 
+@pytest.mark.parametrize("method", ["cancel", "cancel_many"])
+def test_cancel_timeout_maps_to_unknown_order_state(method: str) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(handler),
+            request_signer=FakeSigner(),
+        )
+    )
+
+    with pytest.raises(StandXError) as caught:
+        if method == "cancel":
+            asyncio.run(api.cancel(cl_ord_id="client-timeout"))
+        else:
+            asyncio.run(api.cancel_many(cl_ord_ids=["client-timeout"]))
+
+    assert caught.value.code is ErrorCode.ORDER_UNKNOWN
+    assert caught.value.retryable is False
+    assert "query" in caught.value.message
+
+
 def test_new_order_malformed_success_response_is_protocol_error() -> None:
     api = OrdersApi(
         HttpTransport(
