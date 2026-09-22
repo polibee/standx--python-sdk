@@ -53,6 +53,32 @@ def test_client_injects_request_signer_into_default_rest_transport() -> None:
     assert client.http_transport._request_signer is request_signer
 
 
+def test_client_accepts_access_token_alongside_request_signer() -> None:
+    request_signer = Ed25519RequestSigner(bytes(range(32)))
+
+    client = StandXClient(
+        ClientConfig(base_url="https://paper.example"),
+        access_token="existing-jwt",
+        request_signer=request_signer,
+    )
+
+    assert client.auth.token == "existing-jwt"
+    assert client.http_transport.token == "existing-jwt"
+    assert client.http_transport._request_signer is request_signer
+
+
+def test_client_rejects_blank_access_token() -> None:
+    try:
+        StandXClient(
+            ClientConfig(base_url="https://paper.example"),
+            access_token="  ",
+        )
+    except ValueError as exc:
+        assert "access_token" in str(exc)
+    else:
+        raise AssertionError("blank access token must be rejected")
+
+
 def test_client_stream_factories_accept_offline_transports() -> None:
     class FakeStreamTransport:
         pass
@@ -108,6 +134,18 @@ def test_client_login_propagates_token_to_shared_rest_transport() -> None:
 
     asyncio.run(scenario())
     assert seen["authorization"] == "Bearer client-jwt"
+
+
+def test_client_can_clear_injected_access_token() -> None:
+    client = StandXClient(
+        ClientConfig(base_url="https://paper.example"),
+        access_token="existing-jwt",
+    )
+
+    client.auth.set_access_token(None)
+
+    assert client.auth.token is None
+    assert client.http_transport.token is None
 
 
 def test_client_close_closes_created_streams_and_auth_transport() -> None:

@@ -57,7 +57,7 @@ class AuthService:
         transport: AuthTransport,
         signer: WalletSigner | None = None,
         *,
-        on_token: Callable[[str], None] | None = None,
+        on_token: Callable[[str | None], None] | None = None,
         on_token_expiry: Callable[[int | None], None] | None = None,
     ) -> None:
         self._transport = transport
@@ -66,6 +66,21 @@ class AuthService:
         self._on_token_expiry = on_token_expiry
         self.token: str | None = None
         self.token_expires_at: int | None = None
+
+    def set_access_token(self, token: str | None) -> None:
+        """Use or clear an already-issued JWT without performing wallet login."""
+
+        if token is not None:
+            if not isinstance(token, str):
+                raise TypeError("access_token must be a string or None")
+            if not token.strip():
+                raise ValueError("access_token must not be blank")
+        self.token = token
+        self.token_expires_at = None if token is None else _token_expiry(token)
+        if self._on_token is not None:
+            self._on_token(token)
+        if self._on_token_expiry is not None:
+            self._on_token_expiry(self.token_expires_at)
 
     async def login(self, expires_seconds: int = 604800) -> LoginResponse:
         if isinstance(expires_seconds, bool) or not isinstance(expires_seconds, int):

@@ -111,6 +111,23 @@ Order Response Stream 的 `accepted` 只表示网关接受请求；最终订单�
 
 登录成功后 token 会自动同步到客户端共享的 REST transport。异步应用退出时调用 `await client.close_async()` 释放 HTTP 和 WebSocket 资源。
 
+如果应用已经从安全的凭据管理系统取得 JWT，可以跳过钱包登录，直接注入
+`access_token`：
+
+```python
+client = StandXClient(
+    ClientConfig(base_url="https://perps.standx.com"),
+    access_token=load_jwt_from_secret_store(),
+    request_signer=Ed25519RequestSigner(load_request_signing_key()),
+)
+```
+
+这里的两个凭据用途不同：钱包签名器只负责获取 JWT；`access_token` 负责
+Bearer 认证；`Ed25519RequestSigner` 负责文档要求的请求体签名。三者可以按
+实际 endpoint 需求组合使用。SDK 不读取或持久化钱包私钥，token 失效后也不会
+自动刷新；应用应重新登录或重新注入 token。可通过
+`client.auth.set_access_token(None)` 清理共享 REST transport 的认证状态。
+
 市场 K 线使用文档定义的分辨率（例如 `1T`、`3S`、`1`、`5`、`15`、`60`、`1D`、`1W`、`1M`）；SDK 会校验并行数组长度和有限 Decimal 数值。`client.markets.health()`只接受服务端纯文本 `OK`，否则返回 `PROTOCOL_ERROR`。
 
 也可以使用异步上下文管理器自动释放资源：

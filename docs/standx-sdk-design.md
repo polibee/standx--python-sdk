@@ -89,9 +89,9 @@ client = StandXClient(
 - 可选的 `impersonated_vault_id`；
 - 可注入的 HTTP/WebSocket transport。
 
-`StandXClient`接受可选的 `request_signer`和 `http_transport`，所有 REST domain service 共享同一个实例；WebSocket endpoint 从 `ClientConfig`读取，不能在 facade 内硬编码。`client.streams.market(transport=...)`和 `client.streams.order_response(transport=...)`支持注入 Fake WebSocket transport。这样请求签名、Fake HTTP/WebSocket transport 都可以在离线测试和 PAPER 环境中替换真实网络实现。
+`StandXClient`接受可选的 `access_token`、`request_signer`和 `http_transport`，所有 REST domain service 共享同一个实例；WebSocket endpoint 从 `ClientConfig`读取，不能在 facade 内硬编码。`client.streams.market(transport=...)`和 `client.streams.order_response(transport=...)`支持注入 Fake WebSocket transport。这样请求签名、Fake HTTP/WebSocket transport 都可以在离线测试和 PAPER 环境中替换真实网络实现。
 
-`AuthService.login()`成功后会通过 token sink 更新共享 REST transport 的 Bearer token，因此后续账户、订单和市场请求使用同一个认证状态。`StandXClient.close_async()`负责关闭已创建的 stream、REST transport 和认证 transport；该方法幂等，`StandXClient`也支持 `async with`，退出上下文时自动释放资源。关闭后的 client 不允许再创建 stream。
+`AuthService.login()`成功后会通过 token sink 更新共享 REST transport 的 Bearer token；已有 JWT 也可以通过 `StandXClient(access_token=...)` 注入，或用 `client.auth.set_access_token(...)` 替换/清理。因此后续账户、订单和市场请求使用同一个认证状态。`StandXClient.close_async()`负责关闭已创建的 stream、REST transport 和认证 transport；该方法幂等，`StandXClient`也支持 `async with`，退出上下文时自动释放资源。关闭后的 client 不允许再创建 stream。
 
 `StandXClient.positions`和`StandXClient.trades`是面向领域的类型化服务视图，复用同一个 `AccountApi`和 HTTP transport；它们不创建新的认证或网络状态，也不暴露原始 REST JSON。`market_stream()`和`order_response_stream()`是 `streams` 工厂的直接便捷入口，创建的 stream 仍由同一个 registry 负责关闭。
 
@@ -215,6 +215,8 @@ x-request-signature
 
 ### 7.3 JWT 与 token
 
+- 钱包 `WalletSigner` 只用于 `prepare-signin`/`login` 获取 JWT；已有 JWT 可通过 `StandXClient(access_token=...)` 直接复用；
+- `Ed25519RequestSigner` 是独立的请求体签名凭据，负责 `x-request-sign-*` 头，不等同于钱包登录私钥；`access_token` 与请求签名器可以同时配置；
 - JWT payload 只用于读取过期时间和登录响应字段；登录成功后 `AuthService.token_expires_at` 仅在内存保存整数 `exp`，`is_token_expired()`用于本地判断；
 - SDK 不把 JWT 当作可自行信任的授权证明；
 - token 缺失、过期或服务端拒绝时转换为统一错误；
@@ -222,7 +224,7 @@ x-request-signature
 
 `AuthService` 对服务端拒绝返回 `AUTH_FAILED`，对缺失或非法 `signedData`、非对象 JWT payload、缺失或类型错误的登录认证字段返回不可重试的 `PROTOCOL_ERROR`；错误消息只包含固定诊断文本，不回显 JWT、签名或完整认证请求体。
 
-登录成功后，`StandXClient` 将 token 和解析出的 JWT `exp` 同步到共享 REST transport。每次请求
+登录成功或显式注入 token 后，`StandXClient` 将 token 和解析出的 JWT `exp` 同步到共享 REST transport。每次请求
 在访问网络前检查过期时间，已过期时直接返回不可重试的 `TOKEN_EXPIRED`；SDK 不自动刷新 token，
 调用方必须重新登录。opaque token 没有可解析的 `exp` 时保持兼容，不做本地过期判断。
 

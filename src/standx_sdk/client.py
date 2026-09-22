@@ -58,6 +58,7 @@ class StandXClient:
         config: ClientConfig,
         signer: WalletSigner | None = None,
         *,
+        access_token: str | None = None,
         request_signer: RequestSigner | None = None,
         http_transport: HttpTransport | None = None,
         auth_transport: AuthTransport | None = None,
@@ -78,6 +79,8 @@ class StandXClient:
             on_token=transport.set_token,
             on_token_expiry=transport.set_token_expiry,
         )
+        if access_token is not None:
+            self.auth.set_access_token(access_token)
         self.markets = MarketsApi(transport)
         self.account = AccountApi(transport)
         self.positions = PositionsApi(self.account)
