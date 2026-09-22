@@ -515,6 +515,42 @@ def test_order_response_stream_tracks_request_ids_until_response() -> None:
     assert stream.pending_request_ids == set()
 
 
+def test_order_response_request_ids_must_be_non_empty_and_unique_while_pending() -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+    headers = {
+        "x-request-id": "request-1",
+        "x-request-timestamp": "1700000000000",
+        "x-request-signature": "signature",
+    }
+
+    with pytest.raises(ValueError, match="request_id"):
+        stream.request("order:new", {}, request_id="", header=headers)
+
+    stream.request("order:new", {}, request_id="request-1", header=headers)
+    with pytest.raises(ValueError, match="already pending"):
+        stream.request("order:new", {}, request_id="request-1", header=headers)
+
+
+def test_order_response_resolve_rejects_malformed_response_without_clearing_pending() -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+    stream.request(
+        "order:new",
+        {"cl_ord_id": "client-1"},
+        request_id="request-1",
+        header={
+            "x-request-id": "request-1",
+            "x-request-timestamp": "1700000000000",
+            "x-request-signature": "signature",
+        },
+    )
+
+    with pytest.raises(StandXError) as caught:
+        stream.resolve({"request_id": "request-1"})
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert stream.pending_request_ids == {"request-1"}
+
+
 def test_order_response_resolve_rejects_a_different_session_without_clearing_pending() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
     stream.request(

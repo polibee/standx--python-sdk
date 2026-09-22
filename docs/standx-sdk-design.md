@@ -453,7 +453,7 @@ OPEN ───────────────> UNKNOWN   (状态事件丢�
 - `UNKNOWN`是 SDK 的本地通信状态，不是 StandX 服务端订单状态；
 - `new_order`和 `cancel_order`的 HTTP 成功只代表请求提交/接受，不代表撮合或撤单最终完成；
 - `x-session-id`必须与 Order Response Stream 的 WebSocket `session_id`一致；
-- 订单响应流通过 `request_id`关联请求；用户订单流通过 `id`、`cl_ord_id`和 `updated_at`更新 DTO；
+- 订单响应流通过 `request_id`关联请求；request ID 必须非空，仍处于 pending 的 ID 不得复用；缺少或非法响应 envelope 不能清理 pending 状态。用户订单流通过 `id`、`cl_ord_id`和 `updated_at`更新 DTO；
 - 订单恢复必须通过 `/api/query_order`或 `/api/query_orders`重新查询；
 - 重启后不能依赖进程内状态，必须允许从 REST 快照重建。
 

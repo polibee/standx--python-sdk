@@ -39,6 +39,8 @@ class OrderResponseStream(StreamBase):
         request_id: str,
         header: dict[str, str] | None = None,
     ) -> dict[str, Any]:
+        if not request_id:
+            raise ValueError("request_id must not be empty")
         if method not in {"auth:login", "order:new", "order:cancel"}:
             raise ValueError("unsupported StandX Order Response method")
         request_header = dict(header or {})
@@ -54,6 +56,8 @@ class OrderResponseStream(StreamBase):
                 raise ValueError("x-request-id must match request_id")
             if not request_header["x-request-timestamp"] or not request_header["x-request-signature"]:
                 raise ValueError("authentication headers must be non-empty")
+        if request_id in self._pending_request_ids:
+            raise ValueError("request_id is already pending")
         self._pending_request_ids.add(request_id)
         self._pending_requests[request_id] = {"method": method, "params": dict(params)}
         return {
@@ -66,16 +70,27 @@ class OrderResponseStream(StreamBase):
 
     def resolve(self, response: dict[str, Any]) -> dict[str, Any]:
         request_id = response.get("request_id")
+        if not isinstance(request_id, str):
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "Order Response is missing request_id",
+            )
         response_session_id = response.get("session_id")
         if response_session_id is not None and response_session_id != self.session_id:
             raise StandXError(
                 ErrorCode.PROTOCOL_ERROR,
                 "Order Response session_id does not match stream session",
-                request_id=request_id if isinstance(request_id, str) else None,
+                request_id=request_id,
             )
-        if isinstance(request_id, str):
-            self._pending_request_ids.discard(request_id)
-            self._pending_requests.pop(request_id, None)
+        raw_code = response.get("code")
+        if isinstance(raw_code, bool) or not isinstance(raw_code, int):
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "Order Response code must be an integer",
+                request_id=request_id,
+            )
+        self._pending_request_ids.discard(request_id)
+        self._pending_requests.pop(request_id, None)
         return response
 
     def decode_response(self, response: dict[str, Any]) -> OrderResponseEvent:
