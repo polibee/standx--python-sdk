@@ -245,6 +245,90 @@ def test_market_api_maps_documented_market_and_depth_dtos() -> None:
     assert book.asks == ((Decimal(50001), Decimal(1)),)
 
 
+@pytest.mark.parametrize(
+    "path, payload",
+    [
+        (
+            "/api/query_market_overview",
+            {
+                "summary": {
+                    "open_interest_notional": "1",
+                    "symbol_count": True,
+                    "volume_quote_24h": "1",
+                },
+                "symbols": [],
+            },
+        ),
+        (
+            "/api/query_symbol_market",
+            {"symbol": "BTC-USD", "funding_rate": "0.1", "base": 1},
+        ),
+        (
+            "/api/query_symbol_info",
+            [{"symbol": "BTC-USD", "base_asset": "BTC", "depth_ticks": []}],
+        ),
+    ],
+)
+def test_market_metadata_field_types_are_protocol_errors(
+    path: str, payload: object
+) -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(lambda _: httpx.Response(200, json=payload)),
+    )
+    api = MarketsApi(transport)
+
+    with pytest.raises(StandXError) as caught:
+        if path == "/api/query_market_overview":
+            asyncio.run(api.overview())
+        elif path == "/api/query_symbol_market":
+            asyncio.run(api.symbol_market("BTC-USD"))
+        else:
+            asyncio.run(api.symbol_info("BTC-USD"))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
+def test_market_overview_rejects_non_finite_price_change_percentage() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda _: httpx.Response(
+                200,
+                json={
+                    "summary": {
+                        "open_interest_notional": "1",
+                        "symbol_count": 0,
+                        "volume_quote_24h": "1",
+                    },
+                    "symbols": [
+                        {
+                            "base": "BTC",
+                            "quote": "DUSD",
+                            "symbol": "BTC-USD",
+                            "last_price": "1",
+                            "mark_price": "1",
+                            "funding_rate": "0",
+                            "open_interest": "1",
+                            "open_interest_notional": "1",
+                            "price_change_pct": "NaN",
+                            "volume_24h": "1",
+                            "volume_quote_24h": "1",
+                            "time": "2026-01-01T00:00:00Z",
+                        }
+                    ],
+                },
+            )
+        ),
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(MarketsApi(transport).overview())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+
 def test_recent_trade_snapshots_maps_documented_fields() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/query_recent_trades"

@@ -1,4 +1,5 @@
 import asyncio
+import math
 from collections.abc import Callable
 from decimal import Decimal
 from typing import Any, TypeVar, cast
@@ -71,16 +72,16 @@ class MarketsApi:
         return _protocol_decode(
             "query_symbol_price",
             lambda: SymbolPrice(
-                symbol=str(value["symbol"]),
+                symbol=_required_string(value["symbol"]),
                 last_price=_optional_decimal(value.get("last_price")),
                 mark_price=_optional_decimal(value.get("mark_price")),
                 index_price=_optional_decimal(value.get("index_price")),
                 mid_price=_optional_decimal(value.get("mid_price")),
                 spread_bid=_optional_decimal(value.get("spread_bid")),
                 spread_ask=_optional_decimal(value.get("spread_ask")),
-                base=value.get("base") if isinstance(value.get("base"), str) else None,
-                quote=value.get("quote") if isinstance(value.get("quote"), str) else None,
-                time=value.get("time"),
+                base=_optional_string(value.get("base")),
+                quote=_optional_string(value.get("quote")),
+                time=_optional_string(value.get("time")),
             ),
         )
 
@@ -194,27 +195,29 @@ def _protocol_decode(endpoint: str, decoder: Callable[[], _T]) -> _T:
 def _instrument_rules(values: list[dict[str, Any]]) -> InstrumentRules:
     value = values[0]
     return InstrumentRules(
-        symbol=str(value["symbol"]),
-        base_asset=str(value["base_asset"]),
-        base_decimals=int(value["base_decimals"]),
-        quote_asset=str(value["quote_asset"]),
-        quote_decimals=int(value["quote_decimals"]),
-        price_tick_decimals=int(value["price_tick_decimals"]),
-        qty_tick_decimals=int(value["qty_tick_decimals"]),
+        symbol=_required_string(value["symbol"]),
+        base_asset=_required_string(value["base_asset"]),
+        base_decimals=_integer(value["base_decimals"]),
+        quote_asset=_required_string(value["quote_asset"]),
+        quote_decimals=_integer(value["quote_decimals"]),
+        price_tick_decimals=_integer(value["price_tick_decimals"]),
+        qty_tick_decimals=_integer(value["qty_tick_decimals"]),
         min_order_qty=finite_decimal(value["min_order_qty"]),
         max_order_qty=finite_decimal(value["max_order_qty"]),
         max_position_size=finite_decimal(value["max_position_size"]),
-        max_leverage=int(value["max_leverage"]),
-        def_leverage=int(value["def_leverage"]),
-        max_open_orders=int(value["max_open_orders"]),
+        max_leverage=_integer(value["max_leverage"]),
+        def_leverage=_integer(value["def_leverage"]),
+        max_open_orders=_integer(value["max_open_orders"]),
         price_cap_ratio=finite_decimal(value["price_cap_ratio"]),
         price_floor_ratio=finite_decimal(value["price_floor_ratio"]),
         maker_fee=finite_decimal(value["maker_fee"]),
         taker_fee=finite_decimal(value["taker_fee"]),
-        depth_ticks=tuple(finite_decimal(item) for item in str(value["depth_ticks"]).split(",")),
-        enabled=value.get("enabled") if isinstance(value.get("enabled"), bool) else None,
-        created_at=value.get("created_at") if isinstance(value.get("created_at"), str) else None,
-        updated_at=value.get("updated_at") if isinstance(value.get("updated_at"), str) else None,
+        depth_ticks=tuple(
+            finite_decimal(item) for item in _required_string(value["depth_ticks"]).split(",")
+        ),
+        enabled=_optional_bool(value.get("enabled")),
+        created_at=_optional_string(value.get("created_at")),
+        updated_at=_optional_string(value.get("updated_at")),
     )
 
 
@@ -240,6 +243,35 @@ def _required_bool(value: object) -> bool:
     if not isinstance(value, bool):
         raise TypeError("expected JSON boolean")
     return value
+
+
+def _optional_bool(value: object) -> bool | None:
+    return None if value is None else _required_bool(value)
+
+
+def _integer(value: Any) -> int:
+    if isinstance(value, bool):
+        raise TypeError("expected integer, got boolean")
+    return int(value)
+
+
+def _required_string(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError("expected string")
+    return value
+
+
+def _optional_string(value: object) -> str | None:
+    return None if value is None else _required_string(value)
+
+
+def _finite_float(value: Any) -> float:
+    if isinstance(value, bool):
+        raise TypeError("expected finite float")
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("expected finite float")
+    return result
 
 
 def _kline_parameters(
@@ -291,7 +323,7 @@ def _market_overview(response: dict[str, Any]) -> MarketOverview:
     summary = response["summary"]
     return MarketOverview(
         open_interest_notional=finite_decimal(summary["open_interest_notional"]),
-        symbol_count=int(summary["symbol_count"]),
+        symbol_count=_integer(summary["symbol_count"]),
         volume_quote_24h=finite_decimal(summary["volume_quote_24h"]),
         symbols=tuple(_overview_symbol(value) for value in response["symbols"]),
     )
@@ -306,35 +338,37 @@ def _levels(value: Any) -> tuple[tuple[Decimal, Decimal], ...]:
 
 
 def _spread(value: Any) -> tuple[Decimal, Decimal] | None:
-    if not isinstance(value, list) or len(value) != 2:
+    if value is None:
         return None
+    if not isinstance(value, list) or len(value) != 2:
+        raise TypeError("spread must contain two values")
     return finite_decimal(value[0]), finite_decimal(value[1])
 
 
 def _overview_symbol(value: dict[str, Any]) -> MarketOverviewSymbol:
     return MarketOverviewSymbol(
-        base=str(value["base"]),
-        quote=str(value["quote"]),
-        symbol=str(value["symbol"]),
+        base=_required_string(value["base"]),
+        quote=_required_string(value["quote"]),
+        symbol=_required_string(value["symbol"]),
         last_price=finite_decimal(value["last_price"]),
         mark_price=finite_decimal(value["mark_price"]),
         funding_rate=finite_decimal(value["funding_rate"]),
         open_interest=finite_decimal(value["open_interest"]),
         open_interest_notional=finite_decimal(value["open_interest_notional"]),
-        price_change_pct=float(value["price_change_pct"]),
+        price_change_pct=_finite_float(value["price_change_pct"]),
         volume_24h=finite_decimal(value["volume_24h"]),
         volume_quote_24h=finite_decimal(value["volume_quote_24h"]),
-        time=str(value["time"]),
+        time=_required_string(value["time"]),
     )
 
 
 def _symbol_market(value: dict[str, Any]) -> SymbolMarket:
     return SymbolMarket(
-        symbol=str(value["symbol"]),
+        symbol=_required_string(value["symbol"]),
         last_price=_optional_decimal(value.get("last_price")),
         funding_rate=finite_decimal(value["funding_rate"]),
-        base=value.get("base") if isinstance(value.get("base"), str) else None,
-        quote=value.get("quote") if isinstance(value.get("quote"), str) else None,
+        base=_optional_string(value.get("base")),
+        quote=_optional_string(value.get("quote")),
         mark_price=_optional_decimal(value.get("mark_price")),
         index_price=_optional_decimal(value.get("index_price")),
         mid_price=_optional_decimal(value.get("mid_price")),
@@ -343,6 +377,6 @@ def _symbol_market(value: dict[str, Any]) -> SymbolMarket:
         open_interest=_optional_decimal(value.get("open_interest")),
         volume_24h=_optional_decimal(value.get("volume_24h")),
         spread=_spread(value.get("spread")),
-        next_funding_time=value.get("next_funding_time"),
-        time=value.get("time"),
+        next_funding_time=_optional_string(value.get("next_funding_time")),
+        time=_optional_string(value.get("time")),
     )
