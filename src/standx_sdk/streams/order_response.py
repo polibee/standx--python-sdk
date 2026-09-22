@@ -64,6 +64,13 @@ class OrderResponseStream(StreamBase):
 
     def resolve(self, response: dict[str, Any]) -> dict[str, Any]:
         request_id = response.get("request_id")
+        response_session_id = response.get("session_id")
+        if response_session_id is not None and response_session_id != self.session_id:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "Order Response session_id does not match stream session",
+                request_id=request_id if isinstance(request_id, str) else None,
+            )
         if isinstance(request_id, str):
             self._pending_request_ids.discard(request_id)
             self._pending_requests.pop(request_id, None)
