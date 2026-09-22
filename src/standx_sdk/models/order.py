@@ -52,24 +52,28 @@ class CreateOrderRequest:
     def __post_init__(self) -> None:
         if not self.symbol:
             raise ValueError("symbol must not be empty")
-        if self.qty <= 0:
-            raise ValueError("qty must be positive")
+        _require_positive_decimal(self.qty, "qty")
         if self.order_type is OrderType.LIMIT and self.price is None:
             raise ValueError("limit order requires price")
         if self.order_type is OrderType.MARKET and self.price is not None:
             raise ValueError("market order must not include price")
-        if self.price is not None and self.price <= 0:
-            raise ValueError("price must be positive")
-        if self.tp_price is not None and self.tp_price <= 0:
-            raise ValueError("tp_price must be positive")
-        if self.sl_price is not None and self.sl_price <= 0:
-            raise ValueError("sl_price must be positive")
+        if self.price is not None:
+            _require_positive_decimal(self.price, "price")
+        if self.tp_price is not None:
+            _require_positive_decimal(self.tp_price, "tp_price")
+        if self.sl_price is not None:
+            _require_positive_decimal(self.sl_price, "sl_price")
         if self.leverage is not None and self.leverage <= 0:
             raise ValueError("leverage must be positive")
         if self.margin_mode is not None:
             value = self.margin_mode.value if isinstance(self.margin_mode, MarginMode) else self.margin_mode
             if value not in {mode.value for mode in MarginMode}:
                 raise ValueError("margin_mode must be cross or isolated")
+
+
+def _require_positive_decimal(value: Decimal, field: str) -> None:
+    if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
+        raise ValueError(f"{field} must be finite and positive")
 
 
 @dataclass(frozen=True, slots=True)

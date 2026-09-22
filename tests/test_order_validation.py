@@ -98,3 +98,11 @@ def test_validate_order_accepts_values_aligned_with_symbol_rules() -> None:
         request(qty=Decimal("0.1234"), price=Decimal("50000.01")),
         rules(),
     )
+
+
+def test_order_request_rejects_non_finite_decimal_values() -> None:
+    for field in ("qty", "price", "tp_price", "sl_price"):
+        with pytest.raises(ValueError, match=field):
+            request(**{field: Decimal("NaN")})
+        with pytest.raises(ValueError, match=field):
+            request(**{field: Decimal("Infinity")})
