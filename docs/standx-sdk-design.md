@@ -220,7 +220,7 @@ x-request-signature
 - token 缺失、过期或服务端拒绝时转换为统一错误；
 - 不在错误消息中打印 token 原文。
 
-`AuthService` 对服务端拒绝返回 `AUTH_FAILED`，对缺失或非法 `signedData` 返回 `PROTOCOL_ERROR`；错误消息只包含固定诊断文本，不回显 JWT、签名或完整认证请求体。
+`AuthService` 对服务端拒绝返回 `AUTH_FAILED`，对缺失或非法 `signedData`、非对象 JWT payload、缺失或类型错误的登录认证字段返回不可重试的 `PROTOCOL_ERROR`；错误消息只包含固定诊断文本，不回显 JWT、签名或完整认证请求体。
 
 ## 8. REST 设计
 

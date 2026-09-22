@@ -75,3 +75,36 @@ def test_auth_service_maps_malformed_signed_data_to_protocol_error() -> None:
 
     assert caught.value.code is ErrorCode.PROTOCOL_ERROR
     assert "token" not in caught.value.message.lower()
+
+
+def test_auth_service_maps_invalid_jwt_encoding_to_protocol_error() -> None:
+    class MalformedTransport(FakeAuthTransport):
+        async def post(
+            self, path: str, *, params: dict[str, str], json: dict[str, object]
+        ) -> dict[str, object]:
+            return {"success": True, "signedData": "header.%%%.signature"}
+
+    auth = AuthService(MalformedTransport(), FakeWallet(chain="bsc", address="0xabc"))
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(auth.login())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+
+def test_auth_service_maps_malformed_login_response_to_protocol_error() -> None:
+    class MalformedTransport(FakeAuthTransport):
+        async def post(
+            self, path: str, *, params: dict[str, str], json: dict[str, object]
+        ) -> dict[str, object]:
+            if path.endswith("prepare-signin"):
+                return await super().post(path, params=params, json=json)
+            return {"address": "0xabc", "chain": "bsc"}
+
+    auth = AuthService(MalformedTransport(), FakeWallet(chain="bsc", address="0xabc"))
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(auth.login())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False

@@ -1,6 +1,7 @@
 """StandX wallet-signature authentication flow."""
 
 import base64
+import binascii
 import json
 from collections.abc import Callable
 from typing import Any, Protocol, cast
@@ -38,8 +39,11 @@ def _jwt_payload(token: str) -> dict[str, Any]:
     try:
         encoded = token.split(".")[1]
         encoded += "=" * (-len(encoded) % 4)
-        return cast(dict[str, Any], json.loads(base64.urlsafe_b64decode(encoded).decode("utf-8")))
-    except (IndexError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        payload = json.loads(base64.urlsafe_b64decode(encoded).decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise TypeError("JWT payload must be an object")
+        return cast(dict[str, Any], payload)
+    except (binascii.Error, IndexError, TypeError, UnicodeDecodeError, ValueError) as exc:
         raise StandXError(
             ErrorCode.PROTOCOL_ERROR,
             "signedData is not a valid JWT",
@@ -69,6 +73,8 @@ class AuthService:
             params={"chain": self._signer.chain},
             json={"address": self._signer.address, "requestId": request_id},
         )
+        if not isinstance(prepared, dict):
+            raise StandXError(ErrorCode.PROTOCOL_ERROR, "prepare-signin response was not an object")
         if prepared.get("success") is not True:
             raise StandXError(ErrorCode.AUTH_FAILED, "failed to prepare sign-in")
         signed_data = prepared.get("signedData")
@@ -88,14 +94,36 @@ class AuthService:
                 "expiresSeconds": expires_seconds,
             },
         )
-        result = LoginResponse(
-            token=str(response["token"]),
-            address=str(response["address"]),
-            alias=str(response.get("alias", "")),
-            chain=str(response["chain"]),
-            perps_alpha=bool(response.get("perpsAlpha", False)),
-        )
+        result = _login_response(response)
         self.token = result.token
         if self._on_token is not None:
             self._on_token(result.token)
         return result
+
+
+def _login_response(response: object) -> LoginResponse:
+    try:
+        if not isinstance(response, dict):
+            raise TypeError("login response must be an object")
+        token = response["token"]
+        address = response["address"]
+        chain = response["chain"]
+        alias = response.get("alias", "")
+        perps_alpha = response.get("perpsAlpha", False)
+        if not all(isinstance(value, str) for value in (token, address, chain, alias)):
+            raise TypeError("login response string field has an invalid type")
+        if not isinstance(perps_alpha, bool):
+            raise TypeError("login response perpsAlpha has an invalid type")
+        return LoginResponse(
+            token=token,
+            address=address,
+            alias=alias,
+            chain=chain,
+            perps_alpha=perps_alpha,
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "login response did not contain valid authentication fields",
+            retryable=False,
+        ) from exc
