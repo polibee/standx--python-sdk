@@ -45,6 +45,7 @@ All notable changes to this project are documented here.
 - Hardened Market Stream order and numeric field type boundaries.
 - Cleared stale Market Stream authentication context after authentication failures.
 - Strictly validated optional Order Response `status` and `message` fields without clearing pending requests.
+- Hardened REST order snapshot boolean, integer, and string field boundaries.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.

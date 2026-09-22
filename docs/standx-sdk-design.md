@@ -266,7 +266,7 @@ HTTP 连接失败映射为可重试的 `PROTOCOL_ERROR`，不把底层 URL、Aut
 
 创建订单、单笔撤单和批量撤单的 HTTP 超时会转换为不可自动重试的 `ORDER_UNKNOWN`，调用方必须先按订单标识查询或通过 Order Response Stream 确认再决定后续动作；其他 REST 成功响应的非法 JSON 统一转换为不可重试的 `PROTOCOL_ERROR`。
 
-REST 成功响应的 DTO 映射也属于协议边界：市场接口的缺失必填字段、空规则列表、非法整数/Decimal、损坏的深度层级或错误的成交数组结构，以及账户、持仓、配置、成交、资金历史和订单查询/提交/撤单的缺失字段或非法数值，统一转换为不可重试的 `StandXError(code=PROTOCOL_ERROR)`。错误消息只包含 endpoint 标识，不包含原始响应、认证头或请求参数；底层已产生的 `StandXError` 不会被二次包装。
+REST 成功响应的 DTO 映射也属于协议边界：市场接口的缺失必填字段、空规则列表、非法整数/Decimal、损坏的深度层级或错误的成交数组结构，以及账户、持仓、配置、成交、资金历史和订单查询/提交/撤单的缺失字段、错误布尔值、错误字符串或非法数值，统一转换为不可重试的 `StandXError(code=PROTOCOL_ERROR)`。文档允许的数字字符串仍可解析为整数/Decimal，但布尔值不会被转换成整数。错误消息只包含 endpoint 标识，不包含原始响应、认证头或请求参数；底层已产生的 `StandXError` 不会被二次包装。
 
 ### 8.2 API 服务职责
 

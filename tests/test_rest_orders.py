@@ -355,6 +355,35 @@ def test_query_order_invalid_decimal_is_protocol_error() -> None:
         asyncio.run(api.query_order(order_id=1))
 
     assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+
+@pytest.mark.parametrize("reduce_only", ["false", 1])
+def test_query_order_rejects_non_boolean_reduce_only(reduce_only: object) -> None:
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(
+                lambda _: httpx.Response(
+                    200,
+                    json={
+                        "id": 1,
+                        "symbol": "BTC-USD",
+                        "qty": "1",
+                        "fill_qty": "0",
+                        "fill_avg_price": "0",
+                        "status": "open",
+                        "time_in_force": "gtc",
+                        "reduce_only": reduce_only,
+                    },
+                )
+            ),
+        )
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(api.query_order(order_id=1))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
     assert caught.value.retryable is False
 
 

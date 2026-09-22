@@ -240,34 +240,56 @@ def _result_list(value: object) -> list[object]:
 def _order_from(value: object) -> Order:
     typed = cast(dict[str, Any], value)
     return Order(
-        id=int(typed["id"]),
-        cl_ord_id=typed.get("cl_ord_id"),
-        symbol=str(typed["symbol"]),
-        side=str(typed["side"]),
-        order_type=str(typed["order_type"]),
+        id=_integer(typed["id"]),
+        cl_ord_id=_optional_string(typed.get("cl_ord_id")),
+        symbol=_required_string(typed["symbol"]),
+        side=_required_string(typed["side"]),
+        order_type=_required_string(typed["order_type"]),
         qty=finite_decimal(typed["qty"]),
         fill_qty=finite_decimal(typed["fill_qty"]),
         fill_avg_price=finite_decimal(typed["fill_avg_price"]),
-        status=str(typed["status"]),
-        time_in_force=str(typed["time_in_force"]),
-        reduce_only=bool(typed["reduce_only"]),
+        status=_required_string(typed["status"]),
+        time_in_force=_required_string(typed["time_in_force"]),
+        reduce_only=_required_bool(typed["reduce_only"]),
         price=None if typed.get("price") is None else finite_decimal(typed["price"]),
-        leverage=None if typed.get("leverage") is None else int(typed["leverage"]),
-        margin_mode=typed.get("margin_mode"),
+        leverage=None if typed.get("leverage") is None else _integer(typed["leverage"]),
+        margin_mode=_optional_string(typed.get("margin_mode")),
         avail_locked=(
             None if typed.get("avail_locked") is None else finite_decimal(typed["avail_locked"])
         ),
-        closed_block=None if typed.get("closed_block") is None else int(typed["closed_block"]),
-        created_at=typed.get("created_at"),
+        closed_block=None if typed.get("closed_block") is None else _integer(typed["closed_block"]),
+        created_at=_optional_string(typed.get("created_at")),
         created_block=(
-            None if typed.get("created_block") is None else int(typed["created_block"])
+            None if typed.get("created_block") is None else _integer(typed["created_block"])
         ),
-        liq_id=None if typed.get("liq_id") is None else int(typed["liq_id"]),
+        liq_id=None if typed.get("liq_id") is None else _integer(typed["liq_id"]),
         margin=None if typed.get("margin") is None else finite_decimal(typed["margin"]),
         payload=typed.get("payload"),
-        position_id=None if typed.get("position_id") is None else int(typed["position_id"]),
-        remark=typed.get("remark"),
-        source=typed.get("source"),
-        user=typed.get("user"),
-        updated_at=typed.get("updated_at"),
+        position_id=None if typed.get("position_id") is None else _integer(typed["position_id"]),
+        remark=_optional_string(typed.get("remark")),
+        source=_optional_string(typed.get("source")),
+        user=_optional_string(typed.get("user")),
+        updated_at=_optional_string(typed.get("updated_at")),
     )
+
+
+def _integer(value: Any) -> int:
+    if isinstance(value, bool):
+        raise TypeError("expected integer, got boolean")
+    return int(value)
+
+
+def _required_bool(value: Any) -> bool:
+    if not isinstance(value, bool):
+        raise TypeError("expected JSON boolean")
+    return value
+
+
+def _required_string(value: Any) -> str:
+    if not isinstance(value, str):
+        raise TypeError("expected string")
+    return value
+
+
+def _optional_string(value: Any) -> str | None:
+    return None if value is None else _required_string(value)
