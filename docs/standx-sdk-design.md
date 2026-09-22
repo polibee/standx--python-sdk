@@ -467,6 +467,9 @@ OPEN ───────────────> UNKNOWN   (状态事件丢�
 - 订单恢复必须通过 `/api/query_order`或 `/api/query_orders`重新查询；
 - 重启后不能依赖进程内状态，必须允许从 REST 快照重建。
 
+`restore_open_orders()` 和 pending request 恢复复用每个 `cl_ord_id` 的刷新锁，并通过同一快照
+新鲜度门槛合并缓存；恢复查询不会用较旧的 open-order 列表覆盖并发期间已经观察到的更新订单。
+
 订单 DTO 至少包含：
 
 - 服务端 `order_id`；

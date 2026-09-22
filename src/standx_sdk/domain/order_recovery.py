@@ -49,9 +49,9 @@ class OrderStateReconciler:
             lock = self._refresh_locks.setdefault(cl_ord_id, asyncio.Lock())
             async with lock:
                 order = await self._query_order(cl_ord_id)
-                if order is not None:
-                    self._orders[cl_ord_id] = order
-                return order
+                if order is not None and self._store_snapshot(order):
+                    return order
+                return self._orders.get(cl_ord_id) or order
 
         recovered = await stream.recover_pending(query_locked)
         typed: list[Order] = []
@@ -66,10 +66,25 @@ class OrderStateReconciler:
         """Rebuild the cache from REST after process restart."""
 
         restored = await query_open_orders()
-        self._orders = {
-            order.cl_ord_id: order for order in restored if order.cl_ord_id is not None
-        }
+        for order in restored:
+            if order.cl_ord_id is None:
+                continue
+            lock = self._refresh_locks.setdefault(order.cl_ord_id, asyncio.Lock())
+            async with lock:
+                self._store_snapshot(order)
         return restored
+
+    def _store_snapshot(self, order: Order) -> bool:
+        if order.cl_ord_id is None:
+            return False
+        watermark = self._event_watermarks.get(order.cl_ord_id)
+        if not _snapshot_is_at_least(order, watermark):
+            return False
+        current = self._orders.get(order.cl_ord_id)
+        if current is not None and not _snapshot_is_at_least(order, _parse_timestamp(current.updated_at)):
+            return False
+        self._orders[order.cl_ord_id] = order
+        return True
 
 
 def _parse_timestamp(value: str | None) -> datetime | None:

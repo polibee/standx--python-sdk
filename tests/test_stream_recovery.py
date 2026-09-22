@@ -536,6 +536,46 @@ def test_order_state_reconciler_restores_cache_from_open_orders() -> None:
     assert reconciler.get("client-2") is order
 
 
+def test_restore_open_orders_does_not_overwrite_newer_cached_snapshot() -> None:
+    newer = Order(
+        id=8,
+        cl_ord_id="client-2",
+        symbol="BTC-USD",
+        side="sell",
+        order_type="limit",
+        qty=Decimal(1),
+        fill_qty=Decimal(1),
+        fill_avg_price=Decimal(50000),
+        status="filled",
+        time_in_force="gtc",
+        reduce_only=False,
+        updated_at="2025-08-11T10:02:00Z",
+    )
+    older = Order(
+        id=8,
+        cl_ord_id="client-2",
+        symbol="BTC-USD",
+        side="sell",
+        order_type="limit",
+        qty=Decimal(1),
+        fill_qty=Decimal(0),
+        fill_avg_price=Decimal(0),
+        status="open",
+        time_in_force="gtc",
+        reduce_only=False,
+        updated_at="2025-08-11T10:01:00Z",
+    )
+    reconciler = OrderStateReconciler(lambda _: _missing_order())
+    reconciler._orders["client-2"] = newer
+
+    async def query_open_orders() -> list[Order]:
+        return [older]
+
+    asyncio.run(reconciler.restore_open_orders(query_open_orders))
+
+    assert reconciler.get("client-2") is newer
+
+
 async def _missing_order() -> Order | None:
     return None
 
