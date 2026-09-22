@@ -561,6 +561,10 @@ Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`me
 `session_id + request_id` pending 关联，并返回解码后的 `OrderResponseEvent`；连接断开时不会自动
 重发认证请求。
 
+订单列表 REST 响应必须是包含数组 `result` 的对象；订单提交响应的 `code` 必须是 JSON 整数，
+`message`、`request_id` 和可选 `cl_ord_id` 必须是字符串。违反这些类型契约统一返回不可重试的
+`PROTOCOL_ERROR`，不向公共 API 泄漏原生类型异常。
+
 `OrderResponseStream.decode_response()`将文档中的响应映射为 `OrderResponseEvent`：`status=accepted`映射为 `accepted`，`code=0`且无 accepted 状态映射为 `success`，`code>=400`映射为 `rejected`，其他情况保留为 `unknown`。解码后只清理对应的 pending request，不会把断线中的 `order:new`或`order:cancel`重新发送，避免产生重复外部副作用。
 
 Order Response 响应缺少 `request_id`、session 不匹配、缺少 `code` 或 `code` 不是 JSON 整数时，必须统一转换为 `StandXError(code=PROTOCOL_ERROR)`，并在可识别时保留 `request_id`；不能向公共 API 泄漏原生 JSON/类型转换异常。

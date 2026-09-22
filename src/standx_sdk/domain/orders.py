@@ -164,20 +164,18 @@ class OrdersApi:
             last_id=last_id,
             limit=limit,
         )
-        response = cast(dict[str, Any], await self._transport.get("/api/query_orders", params=params))
+        response = await self._transport.get("/api/query_orders", params=params)
         return _protocol_decode(
-            "query_orders", lambda: [_order_from(item) for item in response.get("result", [])]
+            "query_orders", lambda: [_order_from(item) for item in _result_list(response)]
         )
 
     async def query_open_orders(
         self, *, symbol: str | None = None, limit: int | None = None
     ) -> list[Order]:
         params = _query_params(symbol=symbol, limit=limit)
-        response = cast(
-            dict[str, Any], await self._transport.get("/api/query_open_orders", params=params)
-        )
+        response = await self._transport.get("/api/query_open_orders", params=params)
         return _protocol_decode(
-            "query_open_orders", lambda: [_order_from(item) for item in response.get("result", [])]
+            "query_open_orders", lambda: [_order_from(item) for item in _result_list(response)]
         )
 
     @staticmethod
@@ -185,11 +183,20 @@ class OrdersApi:
         value: dict[str, object], *, fallback_cl_ord_id: str | None = None
     ) -> SubmissionResult:
         typed = cast(dict[str, Any], value)
+        if (
+            isinstance(typed.get("code"), bool)
+            or not isinstance(typed.get("code"), int)
+            or not isinstance(typed.get("message"), str)
+            or not isinstance(typed.get("request_id"), str)
+        ):
+            raise TypeError("order submission response has invalid fields")
         cl_ord_id = typed.get("cl_ord_id")
+        if cl_ord_id is not None and not isinstance(cl_ord_id, str):
+            raise TypeError("order submission response has invalid cl_ord_id")
         return SubmissionResult(
-            int(typed["code"]),
-            str(typed["message"]),
-            str(typed["request_id"]),
+            typed["code"],
+            typed["message"],
+            typed["request_id"],
             cl_ord_id if isinstance(cl_ord_id, str) else fallback_cl_ord_id,
         )
 
@@ -222,6 +229,12 @@ def _unknown_order_error(error: StandXError, operation: str) -> StandXError:
 
 def _query_params(**values: object) -> dict[str, object]:
     return {key: value for key, value in values.items() if value is not None}
+
+
+def _result_list(value: object) -> list[object]:
+    if not isinstance(value, dict) or not isinstance(value.get("result"), list):
+        raise TypeError("order list response must contain a result list")
+    return cast(list[object], value["result"])
 
 
 def _order_from(value: object) -> Order:

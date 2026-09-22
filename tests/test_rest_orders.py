@@ -280,6 +280,55 @@ def test_new_order_malformed_success_response_is_protocol_error() -> None:
     assert caught.value.retryable is False
 
 
+@pytest.mark.parametrize("path", ["/api/query_orders", "/api/query_open_orders"])
+def test_order_list_malformed_success_response_is_protocol_error(path: str) -> None:
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(lambda _: httpx.Response(200, json=[])),
+        )
+    )
+
+    with pytest.raises(StandXError) as caught:
+        if path.endswith("open_orders"):
+            asyncio.run(api.query_open_orders())
+        else:
+            asyncio.run(api.query_orders())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
+def test_order_submission_invalid_field_types_are_protocol_error() -> None:
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(
+                lambda _: httpx.Response(
+                    200, json={"code": "0", "message": "success", "request_id": "r"}
+                )
+            ),
+            request_signer=FakeSigner(),
+        )
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(
+            api.create(
+                CreateOrderRequest(
+                    symbol="BTC-USD",
+                    side=OrderSide.BUY,
+                    order_type=OrderType.MARKET,
+                    qty=Decimal("0.1"),
+                    time_in_force=TimeInForce.GTC,
+                    reduce_only=False,
+                )
+            )
+        )
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+
 def test_query_order_invalid_decimal_is_protocol_error() -> None:
     api = OrdersApi(
         HttpTransport(
