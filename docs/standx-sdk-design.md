@@ -432,7 +432,7 @@ SDK 不默认补充 `time_in_force`，不把限价单变成市价单，也不把
 
 StandX 当前公开接口没有在 `new_order`请求中提供 maker/taker 参数。公开 `query_recent_trades`返回 `is_buyer_taker`，用户成交返回 `fee_asset`和 `fee_qty`：
 
-- `MarketsApi.recent_trades()`保留文档原始响应；`recent_trade_snapshots()`映射为 `RecentTrade`，将`price`、`qty`和`quote_qty`转换为 `Decimal`，并原样保留 `is_buyer_taker`；
+- `MarketsApi.recent_trades()`保留文档定义的列表结果；`recent_trade_snapshots()`映射为 `RecentTrade`，将`price`、`qty`和`quote_qty`转换为 `Decimal`，并严格校验 JSON 布尔类型的 `is_buyer_taker`；缺少列表、元素不是对象或 limit/symbol 参数非法时返回明确的验证/协议错误；
 - `AccountApi.funding_rates()`保留原始查询结果；`funding_rate_snapshots()`映射文档定义的 `FundingRate`，将费率、溢价、指数价和标记价转换为 `Decimal`；
 - `AccountApi.trades()`/`trade_snapshots()`支持文档定义的 `last_id`、`side`、`start`、`end`和`limit`；`funding_history()`支持 `start`、`end`、`last_id`和`limit`，未提供的参数不会发送；
 - `alo`是 StandX 文档定义的只加流动性时间指令；

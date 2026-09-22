@@ -100,12 +100,17 @@ class MarketsApi:
     async def _recent_trades_raw(
         self, symbol: str, *, limit: int | None = None
     ) -> list[dict[str, Any]]:
+        if not symbol:
+            raise ValueError("symbol must not be empty")
+        if limit is not None and (
+            isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0
+        ):
+            raise ValueError("limit must be a positive integer")
         params: dict[str, object] = {"symbol": symbol}
         if limit is not None:
             params["limit"] = limit
         response = await self._transport.get("/api/query_recent_trades", params=params)
-        values = response.get("result", response) if isinstance(response, dict) else response
-        return cast(list[dict[str, Any]], values)
+        return _recent_trade_payload(response)
 
     async def recent_trades(
         self, symbol: str, *, limit: int | None = None
@@ -119,7 +124,7 @@ class MarketsApi:
                     price=finite_decimal(value["price"]),
                     qty=finite_decimal(value["qty"]),
                     quote_qty=finite_decimal(value["quote_qty"]),
-                    is_buyer_taker=bool(value["is_buyer_taker"]),
+                    is_buyer_taker=_required_bool(value["is_buyer_taker"]),
                     time=value.get("time") if isinstance(value.get("time"), str) else None,
                 )
                 for value in values
@@ -216,6 +221,24 @@ def _instrument_rules(values: list[dict[str, Any]]) -> InstrumentRules:
 def _server_time(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise TypeError("server time must be a non-negative JSON integer")
+    return value
+
+
+def _recent_trade_payload(value: object) -> list[dict[str, Any]]:
+    if isinstance(value, dict):
+        value = value.get("result")
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "recent trade response must be a list or contain a result list",
+            retryable=False,
+        )
+    return cast(list[dict[str, Any]], value)
+
+
+def _required_bool(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise TypeError("expected JSON boolean")
     return value
 
 

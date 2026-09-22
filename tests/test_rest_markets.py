@@ -279,6 +279,65 @@ def test_recent_trade_snapshots_maps_documented_fields() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [{"unexpected": []}, {"result": [{"symbol": "BTC-USD"}]}, {"result": ["bad"]}],
+)
+def test_recent_trade_malformed_success_response_is_protocol_error(payload: object) -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(lambda request: httpx.Response(200, json=payload)),
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(MarketsApi(transport).recent_trades("BTC-USD"))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
+def test_recent_trade_boolean_field_is_not_coerced_from_string() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "result": [
+                        {
+                            "is_buyer_taker": "false",
+                            "price": "1",
+                            "qty": "1",
+                            "quote_qty": "1",
+                            "symbol": "BTC-USD",
+                        }
+                    ]
+                },
+            )
+        ),
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(MarketsApi(transport).recent_trades("BTC-USD"))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+
+@pytest.mark.parametrize("symbol, limit", [("", None), ("BTC-USD", 0), ("BTC-USD", -1)])
+def test_recent_trade_parameters_are_validated_before_network(symbol: str, limit: int | None) -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json=[])
+
+    api = MarketsApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+    with pytest.raises(ValueError):
+        asyncio.run(api.recent_trades(symbol, limit=limit))
+    assert calls == 0
+
+
 def test_symbol_info_malformed_success_response_is_protocol_error() -> None:
     transport = HttpTransport(
         "https://perps.standx.com",
