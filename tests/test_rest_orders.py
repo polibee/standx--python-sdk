@@ -170,3 +170,76 @@ def test_new_order_timeout_maps_to_unknown_order_state() -> None:
     assert caught.value.code is ErrorCode.ORDER_UNKNOWN
     assert caught.value.retryable is False
     assert "query" in caught.value.message
+
+
+def test_new_order_malformed_success_response_is_protocol_error() -> None:
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(lambda _: httpx.Response(200, json={"message": "success"})),
+            request_signer=FakeSigner(),
+        )
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(
+            api.create(
+                CreateOrderRequest(
+                    symbol="BTC-USD",
+                    side=OrderSide.BUY,
+                    order_type=OrderType.MARKET,
+                    qty=Decimal("0.1"),
+                    time_in_force=TimeInForce.GTC,
+                    reduce_only=False,
+                )
+            )
+        )
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
+def test_query_order_invalid_decimal_is_protocol_error() -> None:
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(
+                lambda _: httpx.Response(
+                    200,
+                    json={
+                        "id": 1,
+                        "symbol": "BTC-USD",
+                        "qty": "invalid",
+                        "fill_qty": "0",
+                        "fill_avg_price": "0",
+                        "status": "open",
+                        "time_in_force": "gtc",
+                        "reduce_only": False,
+                    },
+                )
+            ),
+        )
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(api.query_order(order_id=1))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
+def test_query_orders_malformed_result_is_protocol_error() -> None:
+    api = OrdersApi(
+        HttpTransport(
+            "https://perps.standx.com",
+            httpx.MockTransport(
+                lambda _: httpx.Response(200, json={"result": [{"id": 1}]})
+            ),
+        )
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(api.query_orders())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False

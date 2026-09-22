@@ -1,13 +1,16 @@
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
 from ..errors import ErrorCode, StandXError
 from ..models.market import InstrumentRules
 from ..models.order import CreateOrderRequest, MarginMode, Order
 from ..transport.http import HttpTransport
 from ..validation.orders import validate_order
+
+_T = TypeVar("_T")
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +81,10 @@ class OrdersApi:
                 retryable=False,
                 server_code=exc.server_code,
             ) from exc
-        return self._result(response, fallback_cl_ord_id=str(body["cl_ord_id"]))
+        return _protocol_decode(
+            "new_order",
+            lambda: self._result(response, fallback_cl_ord_id=str(body["cl_ord_id"])),
+        )
 
     async def cancel(
         self, *, order_id: int | None = None, cl_ord_id: str | None = None
@@ -90,7 +96,8 @@ class OrdersApi:
             for key, value in {"order_id": order_id, "cl_ord_id": cl_ord_id}.items()
             if value is not None
         }
-        return self._result(await self._transport.post("/api/cancel_order", json=body, signed=True))
+        response = await self._transport.post("/api/cancel_order", json=body, signed=True)
+        return _protocol_decode("cancel_order", lambda: self._result(response))
 
     async def cancel_many(
         self, *, order_ids: list[int] | None = None, cl_ord_ids: list[str] | None = None
@@ -102,9 +109,8 @@ class OrdersApi:
             body["order_id_list"] = order_ids
         if cl_ord_ids:
             body["cl_ord_id_list"] = cl_ord_ids
-        return self._result(
-            await self._transport.post("/api/cancel_orders", json=body, signed=True)
-        )
+        response = await self._transport.post("/api/cancel_orders", json=body, signed=True)
+        return _protocol_decode("cancel_orders", lambda: self._result(response))
 
     async def query_order(
         self, *, order_id: int | None = None, cl_ord_id: str | None = None
@@ -116,7 +122,8 @@ class OrdersApi:
             for key, value in {"order_id": order_id, "cl_ord_id": cl_ord_id}.items()
             if value is not None
         }
-        return _order_from(await self._transport.get("/api/query_order", params=params))
+        response = await self._transport.get("/api/query_order", params=params)
+        return _protocol_decode("query_order", lambda: _order_from(response))
 
     async def query_orders(
         self,
@@ -139,7 +146,9 @@ class OrdersApi:
             limit=limit,
         )
         response = cast(dict[str, Any], await self._transport.get("/api/query_orders", params=params))
-        return [_order_from(item) for item in response.get("result", [])]
+        return _protocol_decode(
+            "query_orders", lambda: [_order_from(item) for item in response.get("result", [])]
+        )
 
     async def query_open_orders(
         self, *, symbol: str | None = None, limit: int | None = None
@@ -148,7 +157,9 @@ class OrdersApi:
         response = cast(
             dict[str, Any], await self._transport.get("/api/query_open_orders", params=params)
         )
-        return [_order_from(item) for item in response.get("result", [])]
+        return _protocol_decode(
+            "query_open_orders", lambda: [_order_from(item) for item in response.get("result", [])]
+        )
 
     @staticmethod
     def _result(
@@ -165,6 +176,19 @@ class OrdersApi:
 
 
 __all__ = ["OrdersApi", "SubmissionResult"]
+
+
+def _protocol_decode(endpoint: str, decoder: Callable[[], _T]) -> _T:
+    try:
+        return decoder()
+    except StandXError:
+        raise
+    except (ArithmeticError, IndexError, KeyError, TypeError, ValueError, OverflowError) as exc:
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            f"malformed response from {endpoint}",
+            retryable=False,
+        ) from exc
 
 
 def _query_params(**values: object) -> dict[str, object]:

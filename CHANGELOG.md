@@ -42,6 +42,8 @@ All notable changes to this project are documented here.
 - Normalized malformed typed market REST responses to non-retryable `PROTOCOL_ERROR` errors.
 - Normalized malformed typed account, position, trade, and funding REST responses to non-retryable
   `PROTOCOL_ERROR` errors.
+- Normalized malformed typed order query, submission, cancellation, and bulk-cancellation responses
+  to non-retryable `PROTOCOL_ERROR` errors.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.
