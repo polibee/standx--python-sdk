@@ -450,6 +450,36 @@ def test_order_response_stream_builds_documented_request_envelope() -> None:
     assert message["params"] == '{"qty":"0.1"}'
 
 
+def test_order_response_stream_authenticate_builds_and_decodes_auth_login() -> None:
+    transport = FakeTransport()
+
+    async def receive() -> str:
+        return '{"code":0,"request_id":"auth-1","message":"success"}'
+
+    transport.receive = receive  # type: ignore[method-assign]
+    stream = OrderResponseStream(
+        "wss://perps.standx.com/ws-api/v1", session_id="session-1", transport=transport
+    )
+
+    event = asyncio.run(
+        stream.authenticate("jwt-token", request_id="auth-1", impersonate="cv-1")
+    )
+
+    assert event.state == "success"
+    assert transport.sent[0] == (
+        '{"session_id":"session-1","request_id":"auth-1","method":"auth:login",'
+        '"header":{},"params":"{\\"token\\":\\"jwt-token\\",\\"impersonate\\":\\"cv-1\\"}"}'
+    )
+    assert stream.pending_request_ids == set()
+
+
+def test_order_response_stream_authenticate_rejects_empty_token() -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+
+    with pytest.raises(ValueError, match="token"):
+        asyncio.run(stream.authenticate("  ", request_id="auth-1"))
+
+
 def test_order_response_stream_accepts_documented_authentication_header() -> None:
     stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
 

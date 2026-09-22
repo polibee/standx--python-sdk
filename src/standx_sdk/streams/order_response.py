@@ -231,6 +231,23 @@ class OrderResponseStream(StreamBase):
                 retryable=True,
             ) from exc
 
+    async def authenticate(
+        self,
+        token: str,
+        *,
+        request_id: str,
+        impersonate: str | None = None,
+    ) -> OrderResponseEvent:
+        """Authenticate the stream using the documented auth:login request."""
+
+        if not token.strip():
+            raise ValueError("token must not be empty")
+        params: dict[str, Any] = {"token": token}
+        if impersonate is not None:
+            params["impersonate"] = impersonate
+        await self.send_request("auth:login", params, request_id=request_id)
+        return self.decode_response(await self.receive())
+
     async def receive(self) -> Any:
         try:
             return json.loads(await self.transport.receive())

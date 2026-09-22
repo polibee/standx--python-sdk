@@ -37,6 +37,7 @@ All notable changes to this project are documented here.
 - Hardened configuration and transport boundaries against non-finite timeouts and empty WebSocket endpoints.
 - Mapped single and bulk cancel timeouts to non-retryable `ORDER_UNKNOWN` to prevent duplicate cancellation requests.
 - Wired `StandXClient` order creation to fetch and cache symbol rules before local validation when rules are omitted.
+- Added a typed Order Response Stream `authenticate()` helper for documented `auth:login` requests.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.

@@ -557,6 +557,10 @@ Depth book 的 asks/bids 顺序不保证，SDK 不能默认假定已排序。`We
 
 Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`method`、`header`、JSON 字符串形式的 `params`。HTTP `new_order`和 `cancel_order`的 `x-session-id`必须与 WebSocket 的 `session_id`一致。响应需要区分 `accepted`、成功和拒绝；`accepted`只表示网关接受处理，不表示已经成交或撤单完成。
 
+`OrderResponseStream.authenticate()`封装文档定义的 `auth:login` 请求，验证非空 token，保留
+`session_id + request_id` pending 关联，并返回解码后的 `OrderResponseEvent`；连接断开时不会自动
+重发认证请求。
+
 `OrderResponseStream.decode_response()`将文档中的响应映射为 `OrderResponseEvent`：`status=accepted`映射为 `accepted`，`code=0`且无 accepted 状态映射为 `success`，`code>=400`映射为 `rejected`，其他情况保留为 `unknown`。解码后只清理对应的 pending request，不会把断线中的 `order:new`或`order:cancel`重新发送，避免产生重复外部副作用。
 
 Order Response 响应缺少 `request_id`、session 不匹配、缺少 `code` 或 `code` 不是 JSON 整数时，必须统一转换为 `StandXError(code=PROTOCOL_ERROR)`，并在可识别时保留 `request_id`；不能向公共 API 泄漏原生 JSON/类型转换异常。
