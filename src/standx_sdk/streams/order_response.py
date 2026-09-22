@@ -90,14 +90,14 @@ class OrderResponseStream(StreamBase):
                 "Order Response session_id does not match stream session",
                 request_id=request_id,
             )
-        try:
-            code = int(response.get("code", 0))
-        except (TypeError, ValueError) as exc:
+        raw_code = response.get("code")
+        if isinstance(raw_code, bool) or not isinstance(raw_code, int):
             raise StandXError(
                 ErrorCode.PROTOCOL_ERROR,
                 "Order Response code must be an integer",
                 request_id=request_id,
-            ) from exc
+            )
+        code = raw_code
         status = response.get("status")
         if status == "accepted":
             state = "accepted"

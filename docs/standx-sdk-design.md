@@ -530,7 +530,7 @@ SDK 将 Market Stream 的 `data` 映射为 `models.stream` 中的不可变 DTO�
 
 用户事件不会被拆成第三条 WebSocket 连接，仍由 Market Stream 统一承载。所有 Market Stream DTO 都保留消息顶层 `seq`，且非整数 `seq`按协议错误拒绝；`UserOrderEvent`保留订单 channel 文档定义的锁定金额、保证金、仓位、来源、区块和时间字段；`PositionEvent`和`BalanceEvent`保留文档定义的保证金、钱包、交易和账户元数据；`PriceEvent`保留文档定义的 `base`、`quote`和`time`；DTO 映射只做类型转换，不推导 maker/taker、部分成交状态或其他 StandX 未定义字段。
 
-Market Stream 的用户 channel 必须先调用 `authenticate(token, impersonate=..., streams=...)`。SDK 发送文档定义的 `{ "auth": { "token": ..., "impersonate": ..., "streams": [{"channel": ...}] } }` 消息，并且只有收到 `channel=auth` 且 `data.code=200` 后才允许订阅 `order`、`position`、`balance`或`trade`；`streams`只能包含这四类用户 channel。重连时会先使用原认证参数重新认证，再按原顺序恢复用户订阅；连接或认证失败都会清除本地已认证状态，不会伪造认证成功。服务端拒绝认证统一为 `StandXError(code=AUTH_FAILED)`，认证响应结构或 JSON 损坏统一为 `PROTOCOL_ERROR`。
+Market Stream 的用户 channel 必须先调用 `authenticate(token, impersonate=..., streams=...)`。SDK 发送文档定义的 `{ "auth": { "token": ..., "impersonate": ..., "streams": [{"channel": ...}] } }` 消息，并且只有收到 `channel=auth` 且 `data.code=200` 后才允许订阅 `order`、`position`、`balance`或`trade`；`streams`只能包含这四类用户 channel。重连时会先使用原认证参数重新认证，再按原顺序恢复用户订阅；连接或认证失败都会清除本地已认证状态，不会伪造认证成功。服务端使用 JSON 整数错误码拒绝认证时统一为 `StandXError(code=AUTH_FAILED)`；认证响应缺少 `code` 或 code 不是 JSON 整数时统一为 `PROTOCOL_ERROR`。
 
 Depth book 的 asks/bids 顺序不保证，SDK 不能默认假定已排序。`WebSocketTransport` 默认启用客户端 Ping/Pong（`ping_interval=20s`、`ping_timeout=60s`），由底层 websockets 连接负责无响应检测；调用方可以显式传入 `None`关闭某项或调整参数。连接层还必须处理服务端 Ping/Pong、5 分钟未收到 Pong 的断开，以及单连接最长 24 小时的生命周期。
 
@@ -538,7 +538,7 @@ Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`me
 
 `OrderResponseStream.decode_response()`将文档中的响应映射为 `OrderResponseEvent`：`status=accepted`映射为 `accepted`，`code=0`且无 accepted 状态映射为 `success`，`code>=400`映射为 `rejected`，其他情况保留为 `unknown`。解码后只清理对应的 pending request，不会把断线中的 `order:new`或`order:cancel`重新发送，避免产生重复外部副作用。
 
-Order Response 响应缺少 `request_id`、session 不匹配或 `code` 不是整数时，必须统一转换为 `StandXError(code=PROTOCOL_ERROR)`，并在可识别时保留 `request_id`；不能向公共 API 泄漏原生 JSON/类型转换异常。
+Order Response 响应缺少 `request_id`、session 不匹配、缺少 `code` 或 `code` 不是 JSON 整数时，必须统一转换为 `StandXError(code=PROTOCOL_ERROR)`，并在可识别时保留 `request_id`；不能向公共 API 泄漏原生 JSON/类型转换异常。
 
 订单响应流必须使用 `session_id + request_id`做关联，不能只使用单一 request ID。断线期间未确认的请求不能自动判定为成功或失败，应进入本地未知状态并由 REST 查询恢复。如果响应包含 `session_id`，必须与当前 stream 的 `session_id`一致；不一致统一报 `PROTOCOL_ERROR`，并保留响应中的 `request_id`，且不得清理 pending request。HTTP 错误同时保留服务端原始 `code` 到 `StandXError.server_code`，公共 `code` 仍使用 SDK 稳定错误码。
 

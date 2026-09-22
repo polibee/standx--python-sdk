@@ -140,6 +140,11 @@ class MarketStream(StreamBase):
                 "invalid Market Stream authentication response",
             )
         code = response["data"].get("code")
+        if isinstance(code, bool) or not isinstance(code, int):
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "Market Stream authentication code must be an integer",
+            )
         if code != 200:
             server_code = code if isinstance(code, (int, str)) else None
             raise StandXError(

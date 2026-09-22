@@ -59,6 +59,11 @@ class MalformedAuthFakeTransport(FakeTransport):
         return "not-json"
 
 
+class WrongTypeAuthFakeTransport(FakeTransport):
+    async def receive(self) -> str:
+        return '{"channel":"auth","data":{"code":"200","msg":"success"}}'
+
+
 def test_market_stream_builds_documented_subscription_envelope() -> None:
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
 
@@ -182,6 +187,20 @@ def test_market_stream_maps_rejected_authentication_to_auth_failed() -> None:
 def test_market_stream_maps_malformed_authentication_to_protocol_error() -> None:
     stream = MarketStream(
         "wss://perps.standx.com/ws-stream/v1", transport=MalformedAuthFakeTransport()  # type: ignore[arg-type]
+    )
+
+    async def scenario() -> None:
+        with pytest.raises(StandXError) as caught:
+            await stream.authenticate("jwt-token")
+        assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+    asyncio.run(scenario())
+    assert stream.authenticated is False
+
+
+def test_market_stream_rejects_non_integer_auth_code_as_protocol_error() -> None:
+    stream = MarketStream(
+        "wss://perps.standx.com/ws-stream/v1", transport=WrongTypeAuthFakeTransport()  # type: ignore[arg-type]
     )
 
     async def scenario() -> None:
@@ -469,6 +488,15 @@ def test_order_response_stream_rejects_non_numeric_code_as_protocol_error() -> N
 
     assert caught.value.code is ErrorCode.PROTOCOL_ERROR
     assert stream.pending_request_ids == set()
+
+
+def test_order_response_stream_rejects_boolean_code_as_protocol_error() -> None:
+    stream = OrderResponseStream("wss://perps.standx.com/ws-api/v1", session_id="session-1")
+
+    with pytest.raises(StandXError) as caught:
+        stream.decode_response({"request_id": "request-1", "code": True})
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
 
 
 def test_stream_receive_wraps_invalid_json_as_protocol_error() -> None:
