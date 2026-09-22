@@ -273,7 +273,8 @@ def test_market_stream_wraps_subscription_restore_failure() -> None:
 
     assert caught.value.code is ErrorCode.WS_RESUBSCRIBE_FAILED
     assert "price:BTC-USD" in caught.value.message
-    assert isinstance(caught.value.__cause__, ConnectionError)
+    assert isinstance(caught.value.__cause__, StandXError)
+    assert caught.value.__cause__.code is ErrorCode.WS_DISCONNECTED
 
 
 def test_market_stream_does_not_record_subscription_until_send_succeeds() -> None:
@@ -284,13 +285,41 @@ def test_market_stream_does_not_record_subscription_until_send_succeeds() -> Non
 
     async def scenario() -> None:
         await stream.connect()
-        with pytest.raises(ConnectionError):
+        with pytest.raises(StandXError) as caught:
             await stream.subscribe("price", "BTC-USD")
+        assert caught.value.code is ErrorCode.WS_DISCONNECTED
         await stream.reconnect()
 
     asyncio.run(scenario())
 
     assert transport.sent == []
+
+
+def test_order_response_stream_maps_send_disconnect_to_retryable_sdk_error() -> None:
+    transport = SubscriptionSendFailureTransport()
+    stream = OrderResponseStream(
+        "wss://perps.standx.com/ws-api/v1",
+        session_id="session-1",
+        transport=transport,  # type: ignore[arg-type]
+    )
+
+    async def scenario() -> None:
+        await stream.connect()
+        with pytest.raises(StandXError) as caught:
+            await stream.send_request(
+                "order:new",
+                {"qty": "0.1"},
+                request_id="request-1",
+                header={
+                    "x-request-id": "request-1",
+                    "x-request-timestamp": "1700000000000",
+                    "x-request-signature": "signature",
+                },
+            )
+        assert caught.value.code is ErrorCode.WS_DISCONNECTED
+        assert caught.value.retryable is True
+
+    asyncio.run(scenario())
 
 
 def test_websocket_transport_passes_ping_configuration(monkeypatch: pytest.MonkeyPatch) -> None:

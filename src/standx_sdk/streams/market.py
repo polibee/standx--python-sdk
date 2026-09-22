@@ -99,9 +99,16 @@ class MarketStream(StreamBase):
         if channel in {"order", "position", "balance", "trade"} and not self.authenticated:
             raise RuntimeError("authenticate before subscribing to user channels")
         subscription = (channel, symbol)
-        await self.transport.send(
-            json.dumps(self.subscription(channel, symbol), separators=(",", ":"))
-        )
+        try:
+            await self.transport.send(
+                json.dumps(self.subscription(channel, symbol), separators=(",", ":"))
+            )
+        except (ConnectionError, OSError, TimeoutError, WebSocketException) as exc:
+            raise StandXError(
+                ErrorCode.WS_DISCONNECTED,
+                "Market Stream connection disconnected while sending",
+                retryable=True,
+            ) from exc
         if subscription not in self._subscriptions:
             self._subscriptions.append(subscription)
 
@@ -124,7 +131,14 @@ class MarketStream(StreamBase):
             auth["impersonate"] = impersonate
         if streams is not None:
             auth["streams"] = [{"channel": channel} for channel in streams]
-        await self.transport.send(json.dumps({"auth": auth}, separators=(",", ":")))
+        try:
+            await self.transport.send(json.dumps({"auth": auth}, separators=(",", ":")))
+        except (ConnectionError, OSError, TimeoutError, WebSocketException) as exc:
+            raise StandXError(
+                ErrorCode.WS_DISCONNECTED,
+                "Market Stream connection disconnected while sending authentication",
+                retryable=True,
+            ) from exc
         try:
             response = json.loads(await self.transport.receive())
         except (json.JSONDecodeError, TypeError) as exc:

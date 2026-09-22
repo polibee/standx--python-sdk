@@ -189,12 +189,19 @@ class OrderResponseStream(StreamBase):
         request_id: str,
         header: dict[str, str] | None = None,
     ) -> None:
-        await self.transport.send(
-            json.dumps(
-                self.request(method, params, request_id=request_id, header=header),
-                separators=(",", ":"),
+        try:
+            await self.transport.send(
+                json.dumps(
+                    self.request(method, params, request_id=request_id, header=header),
+                    separators=(",", ":"),
+                )
             )
-        )
+        except (ConnectionError, OSError, TimeoutError, WebSocketException) as exc:
+            raise StandXError(
+                ErrorCode.WS_DISCONNECTED,
+                "Order Response Stream connection disconnected while sending",
+                retryable=True,
+            ) from exc
 
     async def receive(self) -> Any:
         try:

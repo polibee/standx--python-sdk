@@ -37,6 +37,7 @@ All notable changes to this project are documented here.
 - Enforced strict JSON-integer validation for Market Stream authentication and Order Response codes.
 - Recorded Market Stream subscriptions only after successful transport sends.
 - Normalized WebSocket receive disconnects to retryable `WS_DISCONNECTED` errors.
+- Normalized WebSocket send disconnects for subscriptions, authentication, and order requests.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.
