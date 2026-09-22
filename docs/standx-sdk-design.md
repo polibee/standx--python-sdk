@@ -248,7 +248,7 @@ RestTransport
 - 映射超时、连接错误、HTTP 错误和 JSON 错误；
 - 记录脱敏诊断信息。
 
-`HttpTransport`使用 `ClientConfig.timeout_seconds`创建 `httpx.AsyncClient`。网络超时映射为可重试的 `REQUEST_TIMEOUT`；HTTP 400/401/403/408/429/5xx分别映射为验证、认证、超时、限流或协议错误，并尽可能保留响应中的 `message`、`x-request-id`/`request_id`和 `retry-after`。
+`HttpTransport`使用 `ClientConfig.timeout_seconds`创建 `httpx.AsyncClient`。网络超时映射为可重试的 `REQUEST_TIMEOUT`；HTTP 400/401/403/408/429/5xx分别映射为验证、认证、超时、限流或协议错误，并尽可能保留响应中的 `message`、`x-request-id`/`request_id`和 `retry-after`。`aclose()`幂等；关闭后的请求统一返回不可重试的 `PROTOCOL_ERROR`，不泄漏底层 httpx 生命周期异常。
 
 HTTP 连接失败映射为可重试的 `PROTOCOL_ERROR`，不把底层 URL、Authorization 或请求体写入错误消息。
 

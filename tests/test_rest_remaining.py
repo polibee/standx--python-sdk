@@ -569,3 +569,27 @@ def test_http_transport_acquires_credit_before_each_request() -> None:
 
     assert requests == 2
     assert limiter.available_credits == 810
+
+
+def test_closed_http_transport_returns_stable_protocol_error() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(lambda _: httpx.Response(200, json={"ok": True})),
+    )
+    asyncio.run(transport.aclose())
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(transport.get("/closed"))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
+def test_http_transport_close_is_idempotent() -> None:
+    transport = HttpTransport("https://perps.standx.com")
+
+    async def close_twice() -> None:
+        await transport.aclose()
+        await transport.aclose()
+
+    asyncio.run(close_twice())

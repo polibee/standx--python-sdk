@@ -45,6 +45,7 @@ class HttpTransport:
             self._headers["x-session-id"] = session_id
         self._request_signer = request_signer
         self._rate_limiter = rate_limiter or CreditRateLimiter()
+        self._closed = False
 
     @property
     def token(self) -> str | None:
@@ -58,6 +59,7 @@ class HttpTransport:
             self._headers["Authorization"] = f"Bearer {token}"
 
     async def get(self, path: str, *, params: Mapping[str, Any] | None = None) -> Any:
+        self._ensure_open()
         await self._rate_limiter.acquire()
         try:
             response = await self._client.get(path, params=params, headers=self._headers)
@@ -80,6 +82,7 @@ class HttpTransport:
         signed: bool = False,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        self._ensure_open()
         await self._rate_limiter.acquire()
         headers = dict(self._headers)
         if signed:
@@ -147,7 +150,18 @@ class HttpTransport:
         raise error
 
     async def aclose(self) -> None:
+        if self._closed:
+            return
         await self._client.aclose()
+        self._closed = True
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "HTTP transport is closed",
+                retryable=False,
+            )
 
 
 def json_module_dumps(value: Mapping[str, object]) -> str:
