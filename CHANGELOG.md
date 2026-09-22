@@ -42,6 +42,7 @@ All notable changes to this project are documented here.
 - Normalized malformed account, position, trade, and funding list envelopes to `PROTOCOL_ERROR`.
 - Added typed Kline history, server-time, and health-check market APIs with strict response validation.
 - Hardened recent public-trade list envelopes and boolean field validation.
+- Hardened Market Stream order and numeric field type boundaries.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.

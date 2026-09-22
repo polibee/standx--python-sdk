@@ -686,6 +686,26 @@ def test_market_stream_normalizes_invalid_decimal_to_protocol_error() -> None:
     assert caught.value.code is ErrorCode.PROTOCOL_ERROR
 
 
+def test_market_order_event_rejects_string_boolean_and_boolean_integer_fields() -> None:
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
+
+    with pytest.raises(StandXError) as caught:
+        stream.decode(
+            {
+                "channel": "order",
+                "data": {
+                    "id": 1,
+                    "status": "open",
+                    "qty": "1",
+                    "reduce_only": "false",
+                    "position_id": True,
+                },
+            }
+        )
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+
 def test_market_stream_keeps_unknown_channel_as_value_error() -> None:
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
 

@@ -251,7 +251,7 @@ class MarketStream(StreamBase):
             )
         if channel == "order":
             return UserOrderEvent(
-                id=int(data["id"]),
+                id=_integer(data["id"]),
                 status=str(data["status"]),
                 qty=_decimal(data["qty"]),
                 symbol=_optional_str(data.get("symbol")),
@@ -261,7 +261,7 @@ class MarketStream(StreamBase):
                 fill_qty=_optional_decimal(data.get("fill_qty")),
                 fill_avg_price=_optional_decimal(data.get("fill_avg_price")),
                 cl_ord_id=_optional_str(data.get("cl_ord_id")),
-                reduce_only=bool(data.get("reduce_only", False)),
+                reduce_only=_required_bool(data.get("reduce_only", False)),
                 time_in_force=_optional_str(data.get("time_in_force")),
                 avail_locked=_optional_decimal(data.get("avail_locked")),
                 closed_block=_optional_int(data.get("closed_block")),
@@ -280,9 +280,9 @@ class MarketStream(StreamBase):
             )
         if channel == "position":
             return PositionEvent(
-                id=int(data["id"]),
+                id=_integer(data["id"]),
                 qty=_decimal(data["qty"]),
-                leverage=int(data["leverage"]),
+                leverage=_integer(data["leverage"]),
                 symbol=_optional_str(data.get("symbol")),
                 entry_price=_optional_decimal(data.get("entry_price")),
                 entry_value=_optional_decimal(data.get("entry_value")),
@@ -320,7 +320,7 @@ class MarketStream(StreamBase):
             )
         if channel == "trade":
             return UserTradeEvent(
-                id=int(data["id"]),
+                id=_integer(data["id"]),
                 symbol=str(data["symbol"]),
                 qty=_decimal(data["qty"]),
                 price=_decimal(data["price"]),
@@ -354,7 +354,7 @@ class MarketStream(StreamBase):
             )
         if channel == "public_trade":
             return PublicTradeEvent(
-                id=int(data["id"]),
+                id=_integer(data["id"]),
                 symbol=str(data["symbol"]),
                 price=_decimal(data["price"]),
                 qty=_decimal(data["qty"]),
@@ -382,7 +382,19 @@ def _optional_str(value: Any) -> str | None:
 
 
 def _optional_int(value: Any) -> int | None:
-    return None if value is None else int(value)
+    return None if value is None else _integer(value)
+
+
+def _integer(value: Any) -> int:
+    if isinstance(value, bool):
+        raise TypeError("expected integer, got boolean")
+    return int(value)
+
+
+def _required_bool(value: Any) -> bool:
+    if not isinstance(value, bool):
+        raise TypeError("expected JSON boolean")
+    return value
 
 
 def _levels(value: Any) -> tuple[tuple[Any, Any], ...]:
