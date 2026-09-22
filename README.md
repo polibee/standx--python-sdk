@@ -18,11 +18,48 @@ Language: **English** · [简体中文](README.zh-CN.md)
 - Reconnect backoff, subscription recovery, JWT expiry recovery, rate limiting, and order-state reconciliation.
 - No wallet transfer, deposit, withdrawal, or bridge operations.
 
-## Requirements
+## Environment, dependencies, and package requirements
 
-- Python 3.11+
-- A StandX JWT for authenticated queries
-- A matching Ed25519 request-signing key for signed mutations such as orders and leverage changes
+### Runtime environment
+
+- Python **3.11 or newer**; Python 3.12–3.14 are also supported by the package configuration.
+- Windows, Linux, and macOS are supported as long as Python can install the dependencies.
+- No Node.js, Go, Docker, database, Redis, or blockchain node is required by the SDK.
+- Internet access is required only when calling the real StandX REST/WebSocket endpoints.
+- PAPER/LIVE selection is explicit through `ClientConfig.environment`; the default is `PAPER`.
+
+### Runtime packages
+
+The package installs these runtime dependencies automatically:
+
+| Package | Version | Purpose |
+|---|---:|---|
+| `httpx` | `>=0.27` | Async REST transport |
+| `websockets` | `>=15.0` | Market and order WebSocket streams |
+| `PyNaCl` | `>=1.5` | Ed25519 request signing |
+
+The installable package name is `standx-python-sdk`; the import name is `standx_sdk`.
+
+### Development packages
+
+Install the optional `dev` group for repository development:
+
+| Package | Version | Purpose |
+|---|---:|---|
+| `pytest` | `>=8` | Offline test suite |
+| `ruff` | `>=0.6` | Linting and formatting checks |
+| `mypy` | `>=1.11` | Static type checking |
+| `build` | `>=1.2` | Wheel/package build |
+
+Development commands do not require live credentials and do not access real trading endpoints.
+
+### Credentials required by feature
+
+- Public market endpoints: no credential required.
+- Authenticated queries: a StandX JWT (`access_token`).
+- Signed orders, cancellations, leverage, and margin-mode changes: JWT plus a matching 32-byte
+  Ed25519 request-signing key.
+- Wallet login: an application-provided `WalletSigner`; the SDK does not implement wallet custody.
 
 ## Install
 
