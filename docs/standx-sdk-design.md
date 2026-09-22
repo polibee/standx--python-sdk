@@ -226,6 +226,8 @@ x-request-signature
 在访问网络前检查过期时间，已过期时直接返回不可重试的 `TOKEN_EXPIRED`；SDK 不自动刷新 token，
 调用方必须重新登录。opaque token 没有可解析的 `exp` 时保持兼容，不做本地过期判断。
 
+`expires_seconds` 必须是正整数，SDK 在发出认证请求前拒绝零、负数、布尔值和浮点值。
+
 ### 7.4 数值 DTO 边界
 
 文档中的金额、价格、数量、费率、深度和成交量字段统一映射为有限 `Decimal`。服务端返回

@@ -1,5 +1,6 @@
 """Client configuration and environment safety boundaries."""
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 
@@ -25,8 +26,8 @@ class ClientConfig:
     def __post_init__(self) -> None:
         if not self.base_url.strip():
             raise ValueError("base_url must not be empty")
-        if self.timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be positive")
+        if not math.isfinite(self.timeout_seconds) or self.timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be finite and positive")
         for name, value in (
             ("auth_base_url", self.auth_base_url),
             ("market_stream_url", self.market_stream_url),

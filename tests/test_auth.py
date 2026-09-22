@@ -47,6 +47,17 @@ def test_auth_service_runs_documented_prepare_and_login_flow() -> None:
     assert auth.token == "jwt-token"
 
 
+def test_auth_rejects_invalid_expiry_duration_before_network_request() -> None:
+    auth = AuthService(FakeAuthTransport(), FakeWallet(chain="bsc", address="0xabc"))
+
+    for expires_seconds in (0, -1):
+        with pytest.raises(ValueError, match="positive integer"):
+            asyncio.run(auth.login(expires_seconds=expires_seconds))
+    for expires_seconds in (True, 1.5):
+        with pytest.raises(TypeError, match="positive integer"):
+            asyncio.run(auth.login(expires_seconds=expires_seconds))
+
+
 def test_auth_service_maps_prepare_rejection_to_auth_error() -> None:
     class RejectingTransport(FakeAuthTransport):
         async def post(

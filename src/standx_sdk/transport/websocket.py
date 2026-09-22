@@ -16,6 +16,8 @@ class WebSocketTransport:
         ping_interval: float | None = 20.0,
         ping_timeout: float | None = 60.0,
     ) -> None:
+        if not endpoint.strip():
+            raise ValueError("endpoint must not be empty")
         if ping_interval is not None and (
             not math.isfinite(ping_interval) or ping_interval <= 0
         ):

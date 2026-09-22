@@ -33,8 +33,8 @@ class HttpTransport:
         request_signer: RequestSigner | None = None,
         rate_limiter: CreditRateLimiter | None = None,
     ) -> None:
-        if timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be positive")
+        if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be finite and positive")
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
         self._client = httpx.AsyncClient(

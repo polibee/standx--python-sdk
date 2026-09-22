@@ -396,6 +396,9 @@ def test_websocket_transport_rejects_non_finite_ping_configuration() -> None:
         with pytest.raises(ValueError):
             WebSocketTransport("wss://example.test/ws", **kwargs)
 
+    with pytest.raises(ValueError, match="endpoint"):
+        WebSocketTransport("   ")
+
 
 def test_market_stream_maps_receive_disconnect_to_retryable_sdk_error() -> None:
     stream = MarketStream(

@@ -68,6 +68,10 @@ class AuthService:
         self.token_expires_at: int | None = None
 
     async def login(self, expires_seconds: int = 604800) -> LoginResponse:
+        if isinstance(expires_seconds, bool) or not isinstance(expires_seconds, int):
+            raise TypeError("expires_seconds must be a positive integer")
+        if expires_seconds <= 0:
+            raise ValueError("expires_seconds must be a positive integer")
         if self._signer is None:
             raise ValueError("a wallet signer is required for login")
         temporary_key = SigningKey.generate()
