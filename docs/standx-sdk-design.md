@@ -542,6 +542,10 @@ SDK 将 Market Stream 的 `data` 映射为 `models.stream` 中的不可变 DTO�
 
 用户事件不会被拆成第三条 WebSocket 连接，仍由 Market Stream 统一承载。所有 Market Stream DTO 都保留消息顶层 `seq`，且非整数 `seq`按协议错误拒绝；`UserOrderEvent`保留订单 channel 文档定义的锁定金额、保证金、仓位、来源、区块和时间字段；`PositionEvent`和`BalanceEvent`保留文档定义的保证金、钱包、交易和账户元数据；`PriceEvent`保留文档定义的 `base`、`quote`和`time`；DTO 映射只做类型转换，不推导 maker/taker、部分成交状态或其他 StandX 未定义字段。
 
+订单恢复按 `cl_ord_id` 维护 `updated_at` 事件水位。早于已处理水位的用户事件不会再次触发 REST 查询；
+REST 返回的订单快照如果早于当前事件，也不会覆盖本地缓存。缺少或无法解析时间戳时保持兼容，仍以
+REST 快照为权威，不凭局部用户事件字段拼装订单状态。
+
 Market Stream 的用户 channel 必须先调用 `authenticate(token, impersonate=..., streams=...)`。SDK 发送文档定义的 `{ "auth": { "token": ..., "impersonate": ..., "streams": [{"channel": ...}] } }` 消息，并且只有收到 `channel=auth` 且 `data.code=200` 后才允许订阅 `order`、`position`、`balance`或`trade`；`streams`只能包含这四类用户 channel。重连时会先使用原认证参数重新认证，再按原顺序恢复用户订阅；连接或认证失败都会清除本地已认证状态，不会伪造认证成功。服务端使用 JSON 整数错误码拒绝认证时统一为 `StandXError(code=AUTH_FAILED)`；认证响应缺少 `code` 或 code 不是 JSON 整数时统一为 `PROTOCOL_ERROR`。
 
 Depth book 的 asks/bids 顺序不保证，SDK 不能默认假定已排序。`WebSocketTransport` 默认启用客户端 Ping/Pong（`ping_interval=20s`、`ping_timeout=60s`），由底层 websockets 连接负责无响应检测；调用方可以显式传入 `None`关闭某项或调整参数，但启用的参数必须是有限正数。连接层还必须处理服务端 Ping/Pong、5 分钟未收到 Pong 的断开，以及单连接最长 24 小时的生命周期。

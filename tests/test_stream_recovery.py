@@ -273,6 +273,82 @@ def test_order_state_reconciler_uses_rest_snapshot_for_user_order_event() -> Non
     assert calls == ["client-1"]
 
 
+def test_order_state_reconciler_does_not_cache_stale_rest_snapshot() -> None:
+    stale = Order(
+        id=7,
+        cl_ord_id="client-1",
+        symbol="BTC-USD",
+        side="buy",
+        order_type="limit",
+        qty=Decimal(1),
+        fill_qty=Decimal(0),
+        fill_avg_price=Decimal(0),
+        status="open",
+        time_in_force="gtc",
+        reduce_only=False,
+        updated_at="2025-08-11T10:00:00Z",
+    )
+
+    async def query(_: str) -> Order:
+        return stale
+
+    reconciler = OrderStateReconciler(query)
+    event = UserOrderEvent(
+        id=7,
+        status="filled",
+        qty=Decimal(1),
+        cl_ord_id="client-1",
+        updated_at="2025-08-11T10:01:00Z",
+    )
+
+    assert asyncio.run(reconciler.apply_user_event(event)) is None
+    assert reconciler.get("client-1") is None
+
+
+def test_order_state_reconciler_ignores_older_event_watermark() -> None:
+    calls: list[str] = []
+    order = Order(
+        id=7,
+        cl_ord_id="client-1",
+        symbol="BTC-USD",
+        side="buy",
+        order_type="limit",
+        qty=Decimal(1),
+        fill_qty=Decimal(1),
+        fill_avg_price=Decimal(50000),
+        status="filled",
+        time_in_force="gtc",
+        reduce_only=False,
+        updated_at="2025-08-11T10:02:00Z",
+    )
+
+    async def query(cl_ord_id: str) -> Order:
+        calls.append(cl_ord_id)
+        return order
+
+    reconciler = OrderStateReconciler(query)
+    newer = UserOrderEvent(
+        id=7,
+        status="filled",
+        qty=Decimal(1),
+        cl_ord_id="client-1",
+        updated_at="2025-08-11T10:02:00Z",
+    )
+    older = UserOrderEvent(
+        id=7,
+        status="open",
+        qty=Decimal(1),
+        cl_ord_id="client-1",
+        updated_at="2025-08-11T10:01:00Z",
+    )
+
+    asyncio.run(reconciler.apply_user_event(newer))
+    result = asyncio.run(reconciler.apply_user_event(older))
+
+    assert result is order
+    assert calls == ["client-1"]
+
+
 def test_order_state_reconciler_serializes_same_order_refreshes() -> None:
     active = 0
     max_active = 0

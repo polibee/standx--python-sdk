@@ -32,6 +32,7 @@ All notable changes to this project are documented here.
 - Enforced locally tracked JWT expiry before authenticated REST requests with a stable `TOKEN_EXPIRED` error.
 - Added explicit `RetryPolicy` backoff with `retry-after` support; REST retries remain opt-in.
 - Hardened WebSocket connection backoff to avoid retrying configuration and protocol errors.
+- Added order reconciliation watermarks to prevent stale user events or REST snapshots overwriting newer state.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.
