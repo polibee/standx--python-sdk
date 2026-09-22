@@ -532,6 +532,70 @@ def test_account_position_invalid_decimal_is_protocol_error() -> None:
     assert caught.value.retryable is False
 
 
+@pytest.mark.parametrize(
+    "method, payload",
+    [
+        (
+            "positions",
+            {"result": [{"id": True, "symbol": "BTC-USD", "qty": "1", "leverage": 10}]},
+        ),
+        (
+            "trades",
+            {
+                "result": [
+                    {
+                        "id": 1,
+                        "order_id": 2,
+                        "symbol": 3,
+                        "side": "buy",
+                        "price": "1",
+                        "qty": "1",
+                        "value": "1",
+                        "fee_asset": "DUSD",
+                        "fee_qty": "0",
+                        "pnl": "0",
+                    }
+                ]
+            },
+        ),
+        (
+            "funding_history",
+            {
+                "result": [
+                    {
+                        "id": 1,
+                        "asset": "DUSD",
+                        "symbol": "BTC-USD",
+                        "qty": "1",
+                        "txn_type": "funding",
+                        "transact_time": 1,
+                    }
+                ]
+            },
+        ),
+    ],
+)
+def test_account_snapshot_field_types_are_protocol_errors(
+    method: str, payload: dict[str, object]
+) -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(lambda _: httpx.Response(200, json=payload)),
+    )
+    api = AccountApi(transport)
+
+    with pytest.raises(StandXError) as caught:
+        if method == "positions":
+            asyncio.run(api.positions())
+        elif method == "trades":
+            asyncio.run(api.trades())
+        else:
+            asyncio.run(api.funding_history())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
 def test_account_funding_history_malformed_success_response_is_protocol_error() -> None:
     transport = HttpTransport(
         "https://perps.standx.com",

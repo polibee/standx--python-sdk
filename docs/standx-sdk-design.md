@@ -566,7 +566,9 @@ Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`me
 `PROTOCOL_ERROR`，不向公共 API 泄漏原生类型异常。
 
 账户、持仓、成交、资金费率和资金费历史列表响应同样必须解析为对象中的 `result` 数组或文档明确
-定义的顶层数组；缺少结果、结果不是数组或数组元素不是对象时统一返回 `PROTOCOL_ERROR`。
+定义的顶层数组；缺少结果、结果不是数组、数组元素不是对象或 DTO 字段类型错误时统一返回
+`PROTOCOL_ERROR`。文档允许的数字字符串仍可解析为整数/Decimal，但布尔值不会被转换成整数，字符串
+字段不会把其他 JSON 类型强制转换为文本。
 
 `OrderResponseStream.decode_response()`将文档中的响应映射为 `OrderResponseEvent`：`status=accepted`映射为 `accepted`，`code=0`且无 accepted 状态映射为 `success`，`code>=400`映射为 `rejected`，其他情况保留为 `unknown`。解码后只清理对应的 pending request，不会把断线中的 `order:new`或`order:cancel`重新发送，避免产生重复外部副作用。
 

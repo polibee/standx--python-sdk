@@ -214,10 +214,10 @@ def _protocol_decode(endpoint: str, decoder: Callable[[], _T]) -> _T:
 def _positions_from(values: list[dict[str, Any]]) -> list[PositionSnapshot]:
     return [
         PositionSnapshot(
-            id=int(value["id"]),
-            symbol=str(value["symbol"]),
+            id=_integer(value["id"]),
+            symbol=_required_string(value["symbol"]),
             qty=_required_decimal(value, "qty"),
-            leverage=int(value["leverage"]),
+            leverage=_integer(value["leverage"]),
             bankruptcy_price=_optional_decimal(value.get("bankruptcy_price")),
             created_at=_optional_string(value.get("created_at")),
             entry_price=_optional_decimal(value.get("entry_price")),
@@ -285,19 +285,31 @@ def _optional_decimal(value: Any) -> Decimal | None:
 
 
 def _optional_string(value: Any) -> str | None:
-    return value if isinstance(value, str) else None
+    return None if value is None else _required_string(value)
+
+
+def _integer(value: Any) -> int:
+    if isinstance(value, bool):
+        raise TypeError("expected integer, got boolean")
+    return int(value)
+
+
+def _required_string(value: Any) -> str:
+    if not isinstance(value, str):
+        raise TypeError("expected string")
+    return value
 
 
 def _trade_from(value: dict[str, Any]) -> UserTrade:
     return UserTrade(
-        id=int(value["id"]),
-        order_id=int(value["order_id"]),
-        symbol=str(value["symbol"]),
-        side=str(value["side"]),
+        id=_integer(value["id"]),
+        order_id=_integer(value["order_id"]),
+        symbol=_required_string(value["symbol"]),
+        side=_required_string(value["side"]),
         price=finite_decimal(value["price"]),
         qty=finite_decimal(value["qty"]),
         value=finite_decimal(value["value"]),
-        fee_asset=str(value["fee_asset"]),
+        fee_asset=_required_string(value["fee_asset"]),
         fee_qty=finite_decimal(value["fee_qty"]),
         pnl=finite_decimal(value["pnl"]),
         created_at=_optional_string(value.get("created_at")),
@@ -307,12 +319,12 @@ def _trade_from(value: dict[str, Any]) -> UserTrade:
 
 def _funding_from(value: dict[str, Any]) -> FundingPayment:
     return FundingPayment(
-        id=int(value["id"]),
-        asset=str(value["asset"]),
-        symbol=str(value["symbol"]),
+        id=_integer(value["id"]),
+        asset=_required_string(value["asset"]),
+        symbol=_required_string(value["symbol"]),
         qty=finite_decimal(value["qty"]),
-        txn_type=str(value["txn_type"]),
-        transact_time=str(value["transact_time"]),
+        txn_type=_required_string(value["txn_type"]),
+        transact_time=_required_string(value["transact_time"]),
         created_at=_optional_string(value.get("created_at")),
         updated_at=_optional_string(value.get("updated_at")),
     )
@@ -320,8 +332,8 @@ def _funding_from(value: dict[str, Any]) -> FundingPayment:
 
 def _funding_rate_from(value: dict[str, Any]) -> FundingRate:
     return FundingRate(
-        id=int(value["id"]),
-        symbol=str(value["symbol"]),
+        id=_integer(value["id"]),
+        symbol=_required_string(value["symbol"]),
         funding_rate=finite_decimal(value["funding_rate"]),
         index_price=finite_decimal(value["index_price"]),
         mark_price=finite_decimal(value["mark_price"]),
@@ -334,7 +346,7 @@ def _funding_rate_from(value: dict[str, Any]) -> FundingRate:
 
 def _config_change(value: dict[str, Any]) -> ConfigChangeResult:
     return ConfigChangeResult(
-        code=int(value["code"]),
-        message=str(value["message"]),
-        request_id=str(value["request_id"]),
+        code=_integer(value["code"]),
+        message=_required_string(value["message"]),
+        request_id=_required_string(value["request_id"]),
     )
