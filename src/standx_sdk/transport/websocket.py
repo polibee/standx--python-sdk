@@ -1,5 +1,6 @@
 """WebSocket transport shared by the two documented StandX streams."""
 
+import math
 from typing import Any
 
 import websockets
@@ -15,10 +16,14 @@ class WebSocketTransport:
         ping_interval: float | None = 20.0,
         ping_timeout: float | None = 60.0,
     ) -> None:
-        if ping_interval is not None and ping_interval <= 0:
-            raise ValueError("ping_interval must be positive or None")
-        if ping_timeout is not None and ping_timeout <= 0:
-            raise ValueError("ping_timeout must be positive or None")
+        if ping_interval is not None and (
+            not math.isfinite(ping_interval) or ping_interval <= 0
+        ):
+            raise ValueError("ping_interval must be finite, positive, or None")
+        if ping_timeout is not None and (
+            not math.isfinite(ping_timeout) or ping_timeout <= 0
+        ):
+            raise ValueError("ping_timeout must be finite, positive, or None")
         self.endpoint = endpoint
         self.headers = headers or {}
         self.ping_interval = ping_interval

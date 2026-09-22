@@ -1,4 +1,5 @@
 import asyncio
+import math
 
 import pytest
 
@@ -385,6 +386,15 @@ def test_websocket_transport_passes_ping_configuration(monkeypatch: pytest.Monke
         "ping_interval": 20.0,
         "ping_timeout": 60.0,
     }
+
+
+def test_websocket_transport_rejects_non_finite_ping_configuration() -> None:
+    for kwargs in (
+        {"ping_interval": math.nan},
+        {"ping_timeout": math.inf},
+    ):
+        with pytest.raises(ValueError):
+            WebSocketTransport("wss://example.test/ws", **kwargs)
 
 
 def test_market_stream_maps_receive_disconnect_to_retryable_sdk_error() -> None:
