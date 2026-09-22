@@ -240,9 +240,9 @@ Stream 的未确认请求不自动重放，仍保持未知状态并通过 REST �
 作为一个不可变凭据配置传给 `StandXClient(credentials=...)`。Client 会把 JWT 同步
 到 REST 和 Order Response Stream，并把请求签名器注入订单响应流；`order:new`和
 `order:cancel`在未手工传入 headers 时自动按文档格式生成签名。手工 headers 仍可
-覆盖自动生成结果。`decode_request_signing_key()`支持官方常见的 hex/base64/base64url
-编码及 Solana 示例的 64-byte secret key 前 32 bytes；未定义长度（例如 33 bytes）
-必须拒绝，不能静默截断。私钥不写入日志或持久化。
+覆盖自动生成结果。`decode_request_signing_key()`支持 API Token 常见的 base58、
+hex/base64/base64url 编码及 Solana 示例的 64-byte secret key 前 32 bytes；未定义
+长度（例如 33 bytes）必须拒绝，不能静默截断。私钥不写入日志或持久化。
 
 `expires_seconds` 必须是正整数，SDK 在发出认证请求前拒绝零、负数、布尔值和浮点值。
 

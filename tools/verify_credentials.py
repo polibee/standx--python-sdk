@@ -36,7 +36,9 @@ async def _verify() -> None:
         environment=environment,
     )
 
-    encoded_key = _required("STANDX_ED25519_PRIVATE_KEY_HEX")
+    encoded_key = os.environ.get("STANDX_ED25519_PRIVATE_KEY", "").strip()
+    if not encoded_key:
+        encoded_key = _required("STANDX_ED25519_PRIVATE_KEY_HEX")
     try:
         request_signing_key = StandXCredentials.decode_request_signing_key(encoded_key)
     except ValueError as exc:

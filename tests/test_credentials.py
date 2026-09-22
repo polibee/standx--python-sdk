@@ -51,6 +51,19 @@ def test_credentials_reject_undefined_key_length_instead_of_truncating() -> None
         StandXCredentials.decode_request_signing_key(encoded)
 
 
+def test_credentials_decode_base58_request_signing_key() -> None:
+    alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    value = bytes(range(32))
+    number = int.from_bytes(value, "big")
+    encoded = ""
+    while number:
+        number, remainder = divmod(number, 58)
+        encoded = alphabet[remainder] + encoded
+    encoded = "1" + encoded
+
+    assert StandXCredentials.decode_request_signing_key(encoded) == value
+
+
 def test_order_response_stream_signs_order_request_from_unified_credentials() -> None:
     credentials = StandXCredentials(
         access_token="official-jwt",

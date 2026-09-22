@@ -26,27 +26,29 @@ class StandXCredentials:
     def decode_request_signing_key(encoded: str) -> bytes:
         """Decode an official Ed25519 key representation without guessing.
 
-        StandX signs requests with a 32-byte Ed25519 secret. The Solana wallet
-        example may expose a 64-byte secret key; its first 32 bytes are the
-        Ed25519 secret, as documented by StandX. Other lengths are rejected
-        rather than silently truncated.
+        StandX signs requests with a 32-byte Ed25519 secret. API Token values
+        may be base58-encoded; the Solana wallet example may expose a 64-byte
+        secret key whose first 32 bytes are the Ed25519 secret. Other lengths
+        are rejected rather than silently truncated.
         """
 
         if not isinstance(encoded, str) or not encoded.strip():
             raise ValueError("request signing key must not be blank")
         value = encoded.strip()
         decoded: bytes | None = None
-        if len(value) % 2 == 0:
+        if len(value) in {64, 128}:
             try:
                 decoded = bytes.fromhex(value)
             except ValueError:
                 decoded = None
+        if decoded is None and all(char in _BASE58_ALPHABET for char in value):
+            decoded = _decode_base58(value)
         if decoded is None:
             padded = value + "=" * (-len(value) % 4)
             try:
                 decoded = base64.b64decode(padded, altchars=b"-_", validate=True)
             except (binascii.Error, ValueError) as exc:
-                raise ValueError("request signing key must be hex or base64") from exc
+                raise ValueError("request signing key must be hex, base58, or base64") from exc
         if len(decoded) == 64:
             decoded = decoded[:32]
         if len(decoded) != 32:
@@ -56,3 +58,15 @@ class StandXCredentials:
     @property
     def request_signer(self) -> Ed25519RequestSigner:
         return Ed25519RequestSigner(self.request_signing_key)
+
+
+_BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def _decode_base58(value: str) -> bytes:
+    number = 0
+    for char in value:
+        number = number * 58 + _BASE58_ALPHABET.index(char)
+    decoded = b"" if number == 0 else number.to_bytes((number.bit_length() + 7) // 8, "big")
+    leading_zeroes = len(value) - len(value.lstrip("1"))
+    return b"\x00" * leading_zeroes + decoded

@@ -113,10 +113,10 @@ await order_stream.send_request(
 )
 ```
 
-`decode_request_signing_key` 支持官方凭证常见的 hex、base64/base64url 编码，以及
-Solana 示例中的 64-byte secret key（按官方约定取前 32-byte）。最终私钥必须是匹配
-JWT 的 32-byte Ed25519 key；SDK 不会把凭据写入日志或持久化，也不会对未知长度静默
-截断。手工传入 `header` 仍然可以覆盖自动签名结果。
+`decode_request_signing_key` 支持官方 API Token 常用的 base58、hex、base64/base64url
+编码，以及 Solana 示例中的 64-byte secret key（按官方约定取前 32-byte）。最终私钥
+必须是匹配 JWT 的 32-byte Ed25519 key；SDK 不会把凭据写入日志或持久化，也不会对
+未知长度静默截断。手工传入 `header` 仍然可以覆盖自动签名结果。
 
 默认配置使用 StandX 文档中的 REST 和两个 WebSocket endpoint。离线测试可注入自定义 `HttpTransport`，也可以通过 `ClientConfig` 覆盖 endpoint；SDK 不会在测试中访问真实账户。
 
