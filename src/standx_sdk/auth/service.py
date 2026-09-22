@@ -3,6 +3,7 @@
 import base64
 import binascii
 import json
+import time
 from collections.abc import Callable
 from typing import Any, Protocol, cast
 
@@ -62,6 +63,7 @@ class AuthService:
         self._signer = signer
         self._on_token = on_token
         self.token: str | None = None
+        self.token_expires_at: int | None = None
 
     async def login(self, expires_seconds: int = 604800) -> LoginResponse:
         if self._signer is None:
@@ -96,9 +98,17 @@ class AuthService:
         )
         result = _login_response(response)
         self.token = result.token
+        self.token_expires_at = _token_expiry(result.token)
         if self._on_token is not None:
             self._on_token(result.token)
         return result
+
+    def is_token_expired(self, now: float | None = None) -> bool:
+        """Return whether the in-memory token has passed its JWT expiry time."""
+
+        if self.token_expires_at is None:
+            return False
+        return (time.time() if now is None else now) >= self.token_expires_at
 
 
 def _login_response(response: object) -> LoginResponse:
@@ -127,3 +137,14 @@ def _login_response(response: object) -> LoginResponse:
             "login response did not contain valid authentication fields",
             retryable=False,
         ) from exc
+
+
+def _token_expiry(token: str) -> int | None:
+    if token.count(".") != 2:
+        return None
+    try:
+        payload = _jwt_payload(token)
+    except StandXError:
+        return None
+    value = payload.get("exp")
+    return value if isinstance(value, int) and not isinstance(value, bool) else None

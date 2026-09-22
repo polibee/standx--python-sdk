@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import json
 
 import pytest
 
@@ -108,3 +110,26 @@ def test_auth_service_maps_malformed_login_response_to_protocol_error() -> None:
 
     assert caught.value.code is ErrorCode.PROTOCOL_ERROR
     assert caught.value.retryable is False
+
+
+def test_auth_service_keeps_jwt_expiry_in_memory_and_reports_expiration() -> None:
+    payload = base64.urlsafe_b64encode(
+        json.dumps({"exp": 1234}, separators=(",", ":")).encode()
+    ).decode().rstrip("=")
+
+    class JwtTransport(FakeAuthTransport):
+        async def post(
+            self, path: str, *, params: dict[str, str], json: dict[str, object]
+        ) -> dict[str, object]:
+            response = await super().post(path, params=params, json=json)
+            if path.endswith("login"):
+                response["token"] = f"header.{payload}.signature"
+            return response
+
+    auth = AuthService(JwtTransport(), FakeWallet(chain="bsc", address="0xabc"))
+
+    asyncio.run(auth.login())
+
+    assert auth.token_expires_at == 1234
+    assert auth.is_token_expired(now=1233.9) is False
+    assert auth.is_token_expired(now=1234) is True

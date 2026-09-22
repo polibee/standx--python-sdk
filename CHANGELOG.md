@@ -59,6 +59,7 @@ All notable changes to this project are documented here.
 - Rejected non-finite order quantity, price, TP, and SL Decimal values before serialization.
 - Added successful `symbol_info` rule caching with explicit per-symbol refresh and cache clearing.
 - Serialized concurrent first-load requests per symbol so one in-flight REST fetch populates the cache.
+- Added in-memory JWT `exp` tracking and `AuthService.is_token_expired()` without persisting tokens.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.

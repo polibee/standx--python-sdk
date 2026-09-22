@@ -215,7 +215,7 @@ x-request-signature
 
 ### 7.3 JWT 与 token
 
-- JWT payload 只用于读取过期时间和登录响应字段；
+- JWT payload 只用于读取过期时间和登录响应字段；登录成功后 `AuthService.token_expires_at` 仅在内存保存整数 `exp`，`is_token_expired()`用于本地判断；
 - SDK 不把 JWT 当作可自行信任的授权证明；
 - token 缺失、过期或服务端拒绝时转换为统一错误；
 - 不在错误消息中打印 token 原文。
