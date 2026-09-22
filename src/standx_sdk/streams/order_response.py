@@ -3,6 +3,7 @@
 import asyncio
 import inspect
 import json
+import math
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -177,17 +178,17 @@ class OrderResponseStream(StreamBase):
             raise RuntimeError("closed stream cannot connect")
         if max_attempts < 1:
             raise ValueError("max_attempts must be positive")
-        if initial_delay < 0:
-            raise ValueError("initial_delay must not be negative")
-        if max_delay is not None and max_delay <= 0:
-            raise ValueError("max_delay must be positive or None")
+        if not math.isfinite(initial_delay) or initial_delay < 0:
+            raise ValueError("initial_delay must be finite and non-negative")
+        if max_delay is not None and (not math.isfinite(max_delay) or max_delay <= 0):
+            raise ValueError("max_delay must be finite, positive, or None")
         pause = sleep or asyncio.sleep
         delay = initial_delay
         for attempt in range(max_attempts):
             try:
                 await self.connect()
                 return
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError, WebSocketException):
                 if attempt == max_attempts - 1:
                     raise
                 wait = delay if max_delay is None else min(delay, max_delay)
@@ -195,8 +196,8 @@ class OrderResponseStream(StreamBase):
                     wait = jitter(wait)
                 if max_delay is not None:
                     wait = min(wait, max_delay)
-                if wait < 0:
-                    raise ValueError("jitter must not return a negative delay")
+                if not math.isfinite(wait) or wait < 0:
+                    raise ValueError("jitter must return a finite, non-negative delay")
                 result = pause(wait)
                 if inspect.isawaitable(result):
                     await result

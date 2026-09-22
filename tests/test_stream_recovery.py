@@ -1,4 +1,5 @@
 import asyncio
+import math
 from decimal import Decimal
 
 import pytest
@@ -48,6 +49,12 @@ class FlakyTransport:
         return None
 
 
+class InvalidConnectionTransport(FlakyTransport):
+    async def connect(self) -> None:
+        self.connect_count += 1
+        raise ValueError("invalid websocket endpoint")
+
+
 def test_market_stream_retries_with_exponential_backoff() -> None:
     transport = FlakyTransport(failures=2)
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1", transport=transport)  # type: ignore[arg-type]
@@ -64,6 +71,37 @@ def test_market_stream_retries_with_exponential_backoff() -> None:
 
     assert transport.connect_count == 3
     assert delays == [0.25, 0.5]
+
+
+def test_market_stream_backoff_does_not_retry_configuration_errors() -> None:
+    transport = InvalidConnectionTransport(failures=0)
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1", transport=transport)
+    delays: list[float] = []
+
+    async def scenario() -> None:
+        with pytest.raises(ValueError, match="invalid websocket endpoint"):
+            await stream.connect_with_backoff(sleep=lambda delay: delays.append(delay))
+
+    asyncio.run(scenario())
+
+    assert transport.connect_count == 1
+    assert delays == []
+
+
+def test_websocket_backoff_rejects_non_finite_delays_and_jitter() -> None:
+    stream = MarketStream(
+        "wss://perps.standx.com/ws-stream/v1", transport=FlakyTransport(failures=5)
+    )
+
+    async def scenario() -> None:
+        with pytest.raises(ValueError, match="finite"):
+            await stream.connect_with_backoff(initial_delay=math.nan)
+        with pytest.raises(ValueError, match="finite"):
+            await stream.connect_with_backoff(max_delay=math.inf)
+        with pytest.raises(ValueError, match="finite"):
+            await stream.connect_with_backoff(jitter=lambda delay: math.nan)
+
+    asyncio.run(scenario())
 
 
 def test_market_user_channels_map_to_typed_events() -> None:
