@@ -57,6 +57,7 @@ All notable changes to this project are documented here.
 - Rejected non-finite rate-limiter configuration and request costs to prevent invalid waits.
 - Rejected non-finite WebSocket ping interval and timeout values.
 - Rejected non-finite order quantity, price, TP, and SL Decimal values before serialization.
+- Added successful `symbol_info` rule caching with explicit per-symbol refresh and cache clearing.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.

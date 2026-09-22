@@ -2,6 +2,7 @@ import asyncio
 from decimal import Decimal
 
 import httpx
+import pytest
 
 from standx_sdk.domain.markets import MarketsApi
 from standx_sdk.errors import ErrorCode, StandXError
@@ -51,6 +52,71 @@ def test_query_symbol_info_maps_documented_rules() -> None:
     assert rules.enabled is True
     assert rules.created_at == "2025-07-10T05:15:32Z"
     assert rules.updated_at == "2025-07-10T05:15:32Z"
+
+
+def test_symbol_info_caches_successful_rules_and_supports_explicit_refresh() -> None:
+    requests = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "base_asset": "BTC",
+                    "base_decimals": 9,
+                    "quote_asset": "DUSD",
+                    "quote_decimals": 9,
+                    "price_tick_decimals": 2,
+                    "qty_tick_decimals": 4,
+                    "min_order_qty": "0.0001",
+                    "max_order_qty": "100",
+                    "max_position_size": "1000",
+                    "max_leverage": "20",
+                    "def_leverage": "10",
+                    "max_open_orders": "100",
+                    "price_cap_ratio": "0.3",
+                    "price_floor_ratio": "0.3",
+                    "maker_fee": "0.0001",
+                    "taker_fee": "0.0004",
+                    "depth_ticks": "0.01,0.1,1",
+                    "symbol": "BTC-USD",
+                }
+            ],
+        )
+
+    api = MarketsApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+
+    async def collect() -> None:
+        await api.symbol_info("BTC-USD")
+        await api.symbol_info("BTC-USD")
+        await api.symbol_info("BTC-USD", refresh=True)
+        api.clear_symbol_info_cache("BTC-USD")
+        await api.symbol_info("BTC-USD")
+
+    asyncio.run(collect())
+    assert requests == 3
+
+
+def test_malformed_symbol_info_is_not_cached() -> None:
+    requests = 0
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        return httpx.Response(200, json=[])
+
+    api = MarketsApi(HttpTransport("https://perps.standx.com", httpx.MockTransport(handler)))
+
+    async def collect() -> None:
+        for _ in range(2):
+            with pytest.raises(StandXError) as caught:
+                await api.symbol_info("BTC-USD")
+            assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+
+    asyncio.run(collect())
+    assert requests == 2
 
 
 def test_market_api_maps_documented_market_and_depth_dtos() -> None:

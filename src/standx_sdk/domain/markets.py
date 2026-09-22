@@ -20,15 +20,26 @@ _T = TypeVar("_T")
 class MarketsApi:
     def __init__(self, transport: HttpTransport) -> None:
         self._transport = transport
+        self._symbol_info_cache: dict[str, InstrumentRules] = {}
 
-    async def symbol_info(self, symbol: str) -> InstrumentRules:
+    async def symbol_info(self, symbol: str, *, refresh: bool = False) -> InstrumentRules:
+        if not refresh and symbol in self._symbol_info_cache:
+            return self._symbol_info_cache[symbol]
         values: list[dict[str, Any]] = await self._transport.get(
             "/api/query_symbol_info", params={"symbol": symbol}
         )
-        return _protocol_decode(
+        rules = _protocol_decode(
             "query_symbol_info",
             lambda: _instrument_rules(values),
         )
+        self._symbol_info_cache[symbol] = rules
+        return rules
+
+    def clear_symbol_info_cache(self, symbol: str | None = None) -> None:
+        if symbol is None:
+            self._symbol_info_cache.clear()
+        else:
+            self._symbol_info_cache.pop(symbol, None)
 
     async def overview(self) -> MarketOverview:
         response = await self._transport.get("/api/query_market_overview")
