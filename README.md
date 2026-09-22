@@ -4,6 +4,11 @@ Typed, asynchronous Python SDK for the documented StandX Perps REST and WebSocke
 
 Language: **English** · [简体中文](README.zh-CN.md)
 
+[![PyPI Downloads](https://img.shields.io/pypi/dm/standx-python-sdk?label=PyPI%20downloads)](https://pypi.org/project/standx-python-sdk/)
+
+The download badge is populated by PyPI after the package is published. GitHub-source
+installations are not included in this statistic.
+
 > The SDK defaults to `PAPER`. Automated tests are offline and never place real orders.
 > Treat `LIVE` as a production integration that requires your own risk controls and secret management.
 

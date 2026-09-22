@@ -4,6 +4,10 @@
 
 语言：**简体中文** · [English](README.md)
 
+[![PyPI 下载量](https://img.shields.io/pypi/dm/standx-python-sdk?label=PyPI%20downloads)](https://pypi.org/project/standx-python-sdk/)
+
+软件包发布到 PyPI 后，徽章会自动显示下载统计；从 GitHub 源码直接安装的数量不包含在该统计中。
+
 > SDK 默认使用 `PAPER`。自动化测试完全离线，不会真实下单。
 > `LIVE` 只能在应用完成风险控制、密钥管理和灰度验证后使用。
 
