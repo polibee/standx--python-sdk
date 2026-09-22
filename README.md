@@ -90,6 +90,30 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+如果官方同时提供 JWT 和匹配的 Ed25519 请求签名私钥，可以使用统一凭据配置，
+Order Response Stream 会自动为下单/撤单请求生成签名 headers：
+
+```python
+from standx_sdk import ClientConfig, StandXClient, StandXCredentials
+
+credentials = StandXCredentials(
+    access_token=official_jwt,
+    request_signing_key=official_ed25519_private_key,
+)
+client = StandXClient(ClientConfig(base_url="https://perps.standx.com"), credentials=credentials)
+order_stream = client.order_response_stream(session_id="trading-session")
+await order_stream.connect()
+await order_stream.authenticate(request_id="auth-request-1")
+await order_stream.send_request(
+    "order:new",
+    {"symbol": "BTC-USD", "side": "buy", "qty": "0.1"},
+    request_id="order-request-1",
+)
+```
+
+`request_signing_key` 必须是匹配官方 JWT 的 32 字节 Ed25519 私钥；SDK 不会把
+凭据写入日志或持久化。手工传入 `header` 仍然可以覆盖自动签名结果。
+
 默认配置使用 StandX 文档中的 REST 和两个 WebSocket endpoint。离线测试可注入自定义 `HttpTransport`，也可以通过 `ClientConfig` 覆盖 endpoint；SDK 不会在测试中访问真实账户。
 
 `ClientConfig.timeout_seconds`会应用到 REST HTTP client。网络超时和服务端限流会转换为带稳定错误码的 `StandXError`，调用方可以根据 `retryable` 和 `retry_after_seconds`决定是否重试。

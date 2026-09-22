@@ -3,6 +3,7 @@
 from collections.abc import Awaitable, Callable
 from typing import Self
 
+from .auth.credentials import StandXCredentials
 from .auth.service import AuthService, AuthTransport
 from .auth.wallet import WalletSigner
 from .config import ClientConfig
@@ -17,8 +18,16 @@ from .transport.websocket import WebSocketTransport
 
 
 class _Streams:
-    def __init__(self, config: ClientConfig) -> None:
+    def __init__(
+        self,
+        config: ClientConfig,
+        *,
+        token: str | None = None,
+        request_signer: RequestSigner | None = None,
+    ) -> None:
         self._config = config
+        self._token = token
+        self._request_signer = request_signer
         self._created: list[MarketStream | OrderResponseStream] = []
         self._closed = False
 
@@ -41,6 +50,8 @@ class _Streams:
             self._config.order_response_url,
             session_id=session_id,
             transport=transport,
+            token=self._token,
+            request_signer=self._request_signer,
         )
         self._created.append(stream)
         return stream
@@ -53,9 +64,16 @@ class _Streams:
         self._closed = True
 
     async def reauthenticate(self, token: str) -> None:
+        self.set_access_token(token)
         for stream in self._created:
             if isinstance(stream, MarketStream):
                 await stream.reauthenticate(token)
+
+    def set_access_token(self, token: str | None) -> None:
+        self._token = token
+        for stream in self._created:
+            if isinstance(stream, OrderResponseStream):
+                stream.set_access_token(token)
 
 class StandXClient:
     def __init__(
@@ -65,10 +83,16 @@ class StandXClient:
         *,
         access_token: str | None = None,
         request_signer: RequestSigner | None = None,
+        credentials: StandXCredentials | None = None,
         auth_recovery: Callable[[], Awaitable[str]] | None = None,
         http_transport: HttpTransport | None = None,
         auth_transport: AuthTransport | None = None,
     ) -> None:
+        if credentials is not None:
+            if access_token is not None or request_signer is not None:
+                raise ValueError("credentials cannot be combined with access_token or request_signer")
+            access_token = credentials.access_token
+            request_signer = credentials.request_signer
         self.config = config
         transport = http_transport or HttpTransport(
             config.base_url,
@@ -82,7 +106,7 @@ class StandXClient:
         self.auth = AuthService(
             self.auth_transport,
             signer,
-            on_token=transport.set_token,
+            on_token=self._sync_token,
             on_token_expiry=transport.set_token_expiry,
         )
         if access_token is not None:
@@ -96,8 +120,17 @@ class StandXClient:
         self.positions = PositionsApi(self.account)
         self.trades = TradesApi(self.account)
         self.orders = OrdersApi(transport, rules_provider=self.markets.symbol_info)
-        self.streams = _Streams(config)
+        self.streams = _Streams(
+            config,
+            token=self.auth.token,
+            request_signer=request_signer,
+        )
         self._closed = False
+
+    def _sync_token(self, token: str | None) -> None:
+        self.http_transport.set_token(token)
+        if hasattr(self, "streams"):
+            self.streams.set_access_token(token)
 
     async def __aenter__(self) -> Self:
         if self._closed:

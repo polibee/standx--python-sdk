@@ -4,6 +4,7 @@ import asyncio
 import inspect
 import json
 import math
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -12,25 +13,45 @@ from websockets.exceptions import WebSocketException
 from ..errors import ErrorCode, StandXError
 from ..models.order import Order
 from ..models.stream import OrderResponseEvent
+from ..transport.http import RequestSigner
 from ..transport.websocket import WebSocketTransport
 from .base import StreamBase
 
 
 class OrderResponseStream(StreamBase):
     def __init__(
-        self, endpoint: str, *, session_id: str, transport: WebSocketTransport | None = None
+        self,
+        endpoint: str,
+        *,
+        session_id: str,
+        transport: WebSocketTransport | None = None,
+        token: str | None = None,
+        request_signer: RequestSigner | None = None,
     ) -> None:
         super().__init__(endpoint)
         if not session_id:
             raise ValueError("session_id must not be empty")
         self.session_id = session_id
         self.transport = transport or WebSocketTransport(endpoint)
+        self._token = token
+        self._request_signer = request_signer
         self._pending_request_ids: set[str] = set()
         self._pending_requests: dict[str, dict[str, Any]] = {}
 
     @property
     def pending_request_ids(self) -> set[str]:
         return set(self._pending_request_ids)
+
+    @property
+    def token(self) -> str | None:
+        return self._token
+
+    @property
+    def request_signer(self) -> RequestSigner | None:
+        return self._request_signer
+
+    def set_access_token(self, token: str | None) -> None:
+        self._token = token
 
     def request(
         self,
@@ -44,7 +65,11 @@ class OrderResponseStream(StreamBase):
             raise ValueError("request_id must not be empty")
         if method not in {"auth:login", "order:new", "order:cancel"}:
             raise ValueError("unsupported StandX Order Response method")
-        request_header = dict(header or {})
+        request_header = (
+            dict(header)
+            if header is not None
+            else self._sign_order_request(request_id, params)
+        )
         if method in {"order:new", "order:cancel"}:
             required_headers = {
                 "x-request-id",
@@ -68,6 +93,14 @@ class OrderResponseStream(StreamBase):
             "header": request_header,
             "params": json.dumps(params, separators=(",", ":"), ensure_ascii=False),
         }
+
+    def _sign_order_request(self, request_id: str, params: dict[str, Any]) -> dict[str, str]:
+        if self._request_signer is None:
+            return {}
+        payload = json.dumps(params, separators=(",", ":"), ensure_ascii=False)
+        return self._request_signer.sign_request(
+            "v1", request_id, int(time.time() * 1000), payload
+        )
 
     def resolve(self, response: dict[str, Any]) -> dict[str, Any]:
         request_id, _, _, _ = _validate_response(response, self.session_id)
@@ -183,20 +216,23 @@ class OrderResponseStream(StreamBase):
 
     async def authenticate(
         self,
-        token: str,
+        token: str | None = None,
         *,
         request_id: str,
         impersonate: str | None = None,
     ) -> OrderResponseEvent:
         """Authenticate the stream using the documented auth:login request."""
 
-        if not token.strip():
+        resolved_token = self._token if token is None else token
+        if resolved_token is None or not resolved_token.strip():
             raise ValueError("token must not be empty")
-        params: dict[str, Any] = {"token": token}
+        params: dict[str, Any] = {"token": resolved_token}
         if impersonate is not None:
             params["impersonate"] = impersonate
         await self.send_request("auth:login", params, request_id=request_id)
-        return self.decode_response(await self.receive())
+        result = self.decode_response(await self.receive())
+        self._token = resolved_token
+        return result
 
     async def receive(self) -> Any:
         try:

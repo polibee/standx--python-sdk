@@ -236,6 +236,12 @@ transport 最多调用恢复回调一次并重试该 GET；POST 不因 401 自�
 Stream 的未确认请求不自动重放，仍保持未知状态并通过 REST 查询恢复，避免认证恢复
 造成重复下单或重复撤单。
 
+当官方同时提供 JWT 和匹配的 Ed25519 请求签名私钥时，`StandXCredentials` 将两者
+作为一个不可变凭据配置传给 `StandXClient(credentials=...)`。Client 会把 JWT 同步
+到 REST 和 Order Response Stream，并把请求签名器注入订单响应流；`order:new`和
+`order:cancel`在未手工传入 headers 时自动按文档格式生成签名。手工 headers 仍可
+覆盖自动生成结果，签名私钥要求为 32 字节原始 Ed25519 key，不写入日志或持久化。
+
 `expires_seconds` 必须是正整数，SDK 在发出认证请求前拒绝零、负数、布尔值和浮点值。
 
 ### 7.4 数值 DTO 边界
