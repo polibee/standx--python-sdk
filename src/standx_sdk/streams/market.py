@@ -129,7 +129,7 @@ class MarketStream(StreamBase):
             unsupported = set(streams) - _USER_CHANNELS
             if unsupported:
                 raise ValueError(f"unsupported authenticated stream: {min(unsupported)}")
-        self._authenticated = False
+        self._clear_auth()
         auth: dict[str, Any] = {"token": token}
         if impersonate is not None:
             auth["impersonate"] = impersonate
@@ -176,6 +176,12 @@ class MarketStream(StreamBase):
         self._auth_token = token
         self._impersonate = impersonate
         self._auth_streams = None if streams is None else list(streams)
+
+    def _clear_auth(self) -> None:
+        self._authenticated = False
+        self._auth_token = None
+        self._impersonate = None
+        self._auth_streams = None
 
     async def reconnect(self) -> None:
         if self.closed:

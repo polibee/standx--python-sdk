@@ -213,6 +213,8 @@ def test_market_stream_reconnect_auth_failure_clears_authenticated_state() -> No
     asyncio.run(scenario())
 
     assert stream.authenticated is False
+    assert stream._auth_token is None
+    assert stream._auth_streams is None
 
 
 def test_market_stream_rejects_unsupported_auth_stream() -> None:
