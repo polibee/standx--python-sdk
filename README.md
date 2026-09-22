@@ -218,6 +218,7 @@ an ignored local `.env`. It never submits orders or wallet operations.
 
 - [中文文档](README.zh-CN.md)
 - [SDK design](docs/standx-sdk-design.md)
+- [Portable SDK design for other languages](docs/standx-sdk-portable-design.md)
 - [StandX protocol notes](docs/standx.md)
 - [Changelog](CHANGELOG.md)
 - [Official StandX authentication](https://docs.standx.com/standx-api/perps-auth)

@@ -8,6 +8,8 @@ All notable changes to this project are documented here.
 
 - Reorganized README documentation into English and Simplified Chinese guides with installation,
   credential, market-data, WebSocket, signed-order, verification, and infrastructure sections.
+- Added a language-agnostic SDK portability design covering protocol issues, safety boundaries,
+  order consistency, recovery, testing, and production gates.
 - Typed Python client for the documented StandX Perps REST API.
 - Wallet authentication boundary and Ed25519 request signing.
 - Typed market, account, position, trade, funding, order, and instrument-rule DTOs.

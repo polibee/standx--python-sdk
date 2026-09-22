@@ -220,6 +220,7 @@ python -m build
 
 - [English README](README.md)
 - [SDK 设计文档](docs/standx-sdk-design.md)
+- [可移植 SDK 通用设计文档](docs/standx-sdk-portable-design.md)
 - [StandX 协议整理](docs/standx.md)
 - [更新日志](CHANGELOG.md)
 - [StandX 官方认证文档](https://docs.standx.com/standx-api/perps-auth)
