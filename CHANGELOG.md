@@ -44,6 +44,8 @@ All notable changes to this project are documented here.
   `PROTOCOL_ERROR` errors.
 - Normalized malformed typed order query, submission, cancellation, and bulk-cancellation responses
   to non-retryable `PROTOCOL_ERROR` errors.
+- Added async context-manager lifecycle for `StandXClient`; closing is idempotent and closed clients
+  reject new stream creation.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.

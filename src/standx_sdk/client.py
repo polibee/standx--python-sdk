@@ -1,5 +1,7 @@
 """Public StandX SDK facade."""
 
+from typing import Self
+
 from .auth.service import AuthService, AuthTransport
 from .auth.wallet import WalletSigner
 from .config import ClientConfig
@@ -17,8 +19,11 @@ class _Streams:
     def __init__(self, config: ClientConfig) -> None:
         self._config = config
         self._created: list[MarketStream | OrderResponseStream] = []
+        self._closed = False
 
     def market(self, *, transport: WebSocketTransport | None = None) -> MarketStream:
+        if self._closed:
+            raise RuntimeError("closed client cannot create streams")
         stream = MarketStream(self._config.market_stream_url, transport=transport)
         self._created.append(stream)
         return stream
@@ -29,6 +34,8 @@ class _Streams:
         session_id: str = "sdk-session",
         transport: WebSocketTransport | None = None,
     ) -> OrderResponseStream:
+        if self._closed:
+            raise RuntimeError("closed client cannot create streams")
         stream = OrderResponseStream(
             self._config.order_response_url,
             session_id=session_id,
@@ -38,8 +45,11 @@ class _Streams:
         return stream
 
     async def close_async(self) -> None:
+        if self._closed:
+            return
         for stream in self._created:
             await stream.close_async()
+        self._closed = True
 
 
 class StandXClient:
@@ -73,6 +83,15 @@ class StandXClient:
         self.trades = TradesApi(self.account)
         self.orders = OrdersApi(transport)
         self.streams = _Streams(config)
+        self._closed = False
+
+    async def __aenter__(self) -> Self:
+        if self._closed:
+            raise RuntimeError("closed client cannot be entered")
+        return self
+
+    async def __aexit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+        await self.close_async()
 
     def market_stream(self, *, transport: WebSocketTransport | None = None) -> MarketStream:
         """Create and register a Market Stream using the configured endpoint."""
@@ -90,6 +109,8 @@ class StandXClient:
         return self.streams.order_response(session_id=session_id, transport=transport)
 
     async def close_async(self) -> None:
+        if self._closed:
+            return
         await self.streams.close_async()
         await self.http_transport.aclose()
         if self.auth_transport is not self.http_transport:
@@ -98,3 +119,4 @@ class StandXClient:
                 result = close()
                 if hasattr(result, "__await__"):
                     await result
+        self._closed = True

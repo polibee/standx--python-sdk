@@ -107,6 +107,15 @@ Order Response Stream 的 `accepted` 只表示网关接受请求；最终订单�
 
 登录成功后 token 会自动同步到客户端共享的 REST transport。异步应用退出时调用 `await client.close_async()` 释放 HTTP 和 WebSocket 资源。
 
+也可以使用异步上下文管理器自动释放资源：
+
+```python
+async with StandXClient(ClientConfig(base_url="https://perps.standx.com")) as client:
+    balance = await client.account.balance()
+```
+
+Client 关闭是幂等的；关闭后不能再创建新的 Market Stream 或 Order Response Stream。
+
 For a request that was submitted but not confirmed, query the order again with
 the client order ID. The typed REST methods return `Order`, `BalanceSnapshot`,
 and `PositionSnapshot` DTOs with decimal values represented by `Decimal`.

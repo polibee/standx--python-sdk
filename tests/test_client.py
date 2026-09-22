@@ -128,3 +128,33 @@ def test_client_close_closes_created_streams_and_auth_transport() -> None:
     assert market.closed is True
     assert order_response.closed is True
     assert auth_transport.closed is True
+
+
+def test_client_async_context_manager_closes_once_and_rejects_new_streams() -> None:
+    client = StandXClient(ClientConfig(base_url="https://paper.example"))
+    close_calls = 0
+    original_close = client.http_transport.aclose
+
+    async def counted_close() -> None:
+        nonlocal close_calls
+        close_calls += 1
+        await original_close()
+
+    client.http_transport.aclose = counted_close  # type: ignore[method-assign]
+
+    async def scenario() -> None:
+        async with client as managed:
+            assert managed is client
+            client.streams.market()
+
+        await client.close_async()
+
+    asyncio.run(scenario())
+
+    assert close_calls == 1
+    try:
+        client.market_stream()
+    except RuntimeError as exc:
+        assert "closed" in str(exc)
+    else:
+        raise AssertionError("closed client must reject new streams")

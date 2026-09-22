@@ -91,7 +91,7 @@ client = StandXClient(
 
 `StandXClient`接受可选的 `request_signer`和 `http_transport`，所有 REST domain service 共享同一个实例；WebSocket endpoint 从 `ClientConfig`读取，不能在 facade 内硬编码。`client.streams.market(transport=...)`和 `client.streams.order_response(transport=...)`支持注入 Fake WebSocket transport。这样请求签名、Fake HTTP/WebSocket transport 都可以在离线测试和 PAPER 环境中替换真实网络实现。
 
-`AuthService.login()`成功后会通过 token sink 更新共享 REST transport 的 Bearer token，因此后续账户、订单和市场请求使用同一个认证状态。`StandXClient.close_async()`负责关闭已创建的 stream、REST transport 和认证 transport；调用方在异步应用退出时必须调用它。
+`AuthService.login()`成功后会通过 token sink 更新共享 REST transport 的 Bearer token，因此后续账户、订单和市场请求使用同一个认证状态。`StandXClient.close_async()`负责关闭已创建的 stream、REST transport 和认证 transport；该方法幂等，`StandXClient`也支持 `async with`，退出上下文时自动释放资源。关闭后的 client 不允许再创建 stream。
 
 `StandXClient.positions`和`StandXClient.trades`是面向领域的类型化服务视图，复用同一个 `AccountApi`和 HTTP transport；它们不创建新的认证或网络状态，也不暴露原始 REST JSON。`market_stream()`和`order_response_stream()`是 `streams` 工厂的直接便捷入口，创建的 stream 仍由同一个 registry 负责关闭。
 
