@@ -29,14 +29,15 @@ class OrderStateReconciler:
         if event.cl_ord_id is None:
             return None
         event_time = _parse_timestamp(event.updated_at)
-        if event_time is not None:
-            previous = self._event_watermarks.get(event.cl_ord_id)
-            if previous is not None and event_time <= previous:
-                return self._orders.get(event.cl_ord_id)
-            self._event_watermarks[event.cl_ord_id] = event_time
         lock = self._refresh_locks.setdefault(event.cl_ord_id, asyncio.Lock())
         async with lock:
+            if event_time is not None:
+                previous = self._event_watermarks.get(event.cl_ord_id)
+                if previous is not None and event_time <= previous:
+                    return self._orders.get(event.cl_ord_id)
             order = await self._query_order(event.cl_ord_id)
+            if event_time is not None:
+                self._event_watermarks[event.cl_ord_id] = event_time
             if order is not None and _snapshot_is_at_least(order, event_time):
                 self._orders[event.cl_ord_id] = order
                 return order
@@ -92,7 +93,7 @@ def _parse_timestamp(value: str | None) -> datetime | None:
         return None
     try:
         parsed = datetime.fromisoformat(value)
-    except ValueError:
+    except (TypeError, ValueError):
         return None
     return parsed if parsed.tzinfo is not None else None
 

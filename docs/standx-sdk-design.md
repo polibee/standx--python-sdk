@@ -549,7 +549,7 @@ SDK 将 Market Stream 的 `data` 映射为 `models.stream` 中的不可变 DTO�
 
 用户事件不会被拆成第三条 WebSocket 连接，仍由 Market Stream 统一承载。所有 Market Stream DTO 都保留消息顶层 `seq`，且非整数 `seq`按协议错误拒绝；`UserOrderEvent`保留订单 channel 文档定义的锁定金额、保证金、仓位、来源、区块和时间字段；`PositionEvent`和`BalanceEvent`保留文档定义的保证金、钱包、交易和账户元数据；`PriceEvent`保留文档定义的 `base`、`quote`和`time`；DTO 映射只做类型转换，不推导 maker/taker、部分成交状态或其他 StandX 未定义字段。
 
-订单恢复按 `cl_ord_id` 维护 `updated_at` 事件水位。早于已处理水位的用户事件不会再次触发 REST 查询；
+订单恢复按 `cl_ord_id` 维护 `updated_at` 事件水位。早于已处理水位的用户事件不会再次触发 REST 查询；水位只在本次 REST 重读成功返回后推进。若 REST 重读抛出临时网络或服务异常，不会提前消费该事件，后续可以用同一事件再次触发恢复；
 REST 返回的订单快照如果早于当前事件，也不会覆盖本地缓存。缺少或无法解析时间戳时保持兼容，仍以
 REST 快照为权威，不凭局部用户事件字段拼装订单状态。
 

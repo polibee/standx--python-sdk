@@ -305,6 +305,45 @@ def test_order_state_reconciler_does_not_cache_stale_rest_snapshot() -> None:
     assert reconciler.get("client-1") is None
 
 
+def test_order_state_reconciler_retries_same_event_after_rest_failure() -> None:
+    calls = 0
+    order = Order(
+        id=7,
+        cl_ord_id="client-1",
+        symbol="BTC-USD",
+        side="buy",
+        order_type="limit",
+        qty=Decimal(1),
+        fill_qty=Decimal(1),
+        fill_avg_price=Decimal(100),
+        status="filled",
+        time_in_force="gtc",
+        reduce_only=False,
+        updated_at="2025-08-11T10:01:00Z",
+    )
+
+    async def query(_: str) -> Order:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise ConnectionError("temporary REST failure")
+        return order
+
+    reconciler = OrderStateReconciler(query)
+    event = UserOrderEvent(
+        id=7,
+        status="filled",
+        qty=Decimal(1),
+        cl_ord_id="client-1",
+        updated_at="2025-08-11T10:01:00Z",
+    )
+
+    with pytest.raises(ConnectionError):
+        asyncio.run(reconciler.apply_user_event(event))
+    assert asyncio.run(reconciler.apply_user_event(event)) is order
+    assert calls == 2
+
+
 def test_order_state_reconciler_ignores_older_event_watermark() -> None:
     calls: list[str] = []
     order = Order(
