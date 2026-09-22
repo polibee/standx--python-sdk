@@ -605,6 +605,21 @@ def test_stream_protocol_errors_use_stable_sdk_error_code() -> None:
     assert market_error.value.code is ErrorCode.PROTOCOL_ERROR
 
 
+def test_stream_decoders_reject_non_object_envelopes_as_protocol_errors() -> None:
+    response_stream = OrderResponseStream(
+        "wss://perps.standx.com/ws-api/v1", session_id="session-1"
+    )
+    market_stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
+
+    with pytest.raises(StandXError) as response_error:
+        response_stream.decode_response([])  # type: ignore[arg-type]
+    with pytest.raises(StandXError) as market_error:
+        market_stream.decode([])  # type: ignore[arg-type]
+
+    assert response_error.value.code is ErrorCode.PROTOCOL_ERROR
+    assert market_error.value.code is ErrorCode.PROTOCOL_ERROR
+
+
 def test_market_stream_normalizes_missing_required_fields_to_protocol_error() -> None:
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
 

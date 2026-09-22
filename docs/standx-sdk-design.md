@@ -528,7 +528,7 @@ SDK 将 Market Stream 的 `data` 映射为 `models.stream` 中的不可变 DTO�
 - `position` → `PositionEvent`：`qty` 使用 `Decimal`，`leverage` 使用整数；
 - `balance` → `BalanceEvent`：余额字段使用 `Decimal`；
 - `trade` → `UserTradeEvent`，公开 `price`、`depth_book`、`public_trade` 也有对应 DTO；
-- 未知 channel 转换为 `ValueError`；缺少 `channel`/`data`、缺失 DTO 必填字段、非法 Decimal 或损坏层级结构统一转换为 `StandXError(code=PROTOCOL_ERROR)`。
+- 未知 channel 转换为 `ValueError`；非对象 envelope、缺少 `channel`/`data`、缺失 DTO 必填字段、非法 Decimal 或损坏层级结构统一转换为 `StandXError(code=PROTOCOL_ERROR)`。
 
 用户事件不会被拆成第三条 WebSocket 连接，仍由 Market Stream 统一承载。所有 Market Stream DTO 都保留消息顶层 `seq`，且非整数 `seq`按协议错误拒绝；`UserOrderEvent`保留订单 channel 文档定义的锁定金额、保证金、仓位、来源、区块和时间字段；`PositionEvent`和`BalanceEvent`保留文档定义的保证金、钱包、交易和账户元数据；`PriceEvent`保留文档定义的 `base`、`quote`和`time`；DTO 映射只做类型转换，不推导 maker/taker、部分成交状态或其他 StandX 未定义字段。
 

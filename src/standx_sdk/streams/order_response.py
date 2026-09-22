@@ -69,6 +69,11 @@ class OrderResponseStream(StreamBase):
         }
 
     def resolve(self, response: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(response, dict):
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "Order Response envelope must be an object",
+            )
         request_id = response.get("request_id")
         if not isinstance(request_id, str):
             raise StandXError(
@@ -94,6 +99,11 @@ class OrderResponseStream(StreamBase):
         return response
 
     def decode_response(self, response: dict[str, Any]) -> OrderResponseEvent:
+        if not isinstance(response, dict):
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "Order Response envelope must be an object",
+            )
         request_id = response.get("request_id")
         if not isinstance(request_id, str):
             raise StandXError(

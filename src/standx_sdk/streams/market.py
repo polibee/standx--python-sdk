@@ -214,6 +214,11 @@ class MarketStream(StreamBase):
             ) from exc
 
     def decode(self, message: dict[str, Any]) -> Any:
+        if not isinstance(message, dict):
+            raise StandXError(
+                ErrorCode.PROTOCOL_ERROR,
+                "Market Stream message envelope must be an object",
+            )
         channel = message.get("channel")
         if isinstance(channel, str) and channel not in _SUPPORTED_CHANNELS:
             raise ValueError(f"unsupported StandX Market Stream channel: {channel}")
