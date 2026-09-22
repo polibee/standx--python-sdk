@@ -1,11 +1,15 @@
+from collections.abc import Callable
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
+from ..errors import ErrorCode, StandXError
 from ..models.account import BalanceSnapshot, PositionSnapshot
 from ..models.account_config import ConfigChangeResult, PositionConfig
 from ..models.order import MarginMode
 from ..models.trade import FundingPayment, FundingRate, UserTrade
 from ..transport.http import HttpTransport
+
+_T = TypeVar("_T")
 
 
 def _decimalize(value: Any) -> Any:
@@ -30,7 +34,7 @@ class AccountApi:
 
     async def balance(self) -> BalanceSnapshot:
         value = await self._balance_raw()
-        return _balance_from(value)
+        return _protocol_decode("query_balance", lambda: _balance_from(value))
 
     async def balance_snapshot(self) -> BalanceSnapshot:
         return await self.balance()
@@ -44,33 +48,7 @@ class AccountApi:
 
     async def positions(self, symbol: str | None = None) -> list[PositionSnapshot]:
         values = await self._positions_raw(symbol)
-        return [
-            PositionSnapshot(
-                id=int(value["id"]),
-                symbol=str(value["symbol"]),
-                qty=_required_decimal(value, "qty"),
-                leverage=int(value["leverage"]),
-                bankruptcy_price=_optional_decimal(value.get("bankruptcy_price")),
-                created_at=_optional_string(value.get("created_at")),
-                entry_price=_optional_decimal(value.get("entry_price")),
-                entry_value=_optional_decimal(value.get("entry_value")),
-                holding_margin=_optional_decimal(value.get("holding_margin")),
-                initial_margin=_optional_decimal(value.get("initial_margin")),
-                liq_price=_optional_decimal(value.get("liq_price")),
-                maint_margin=_optional_decimal(value.get("maint_margin")),
-                margin_asset=_optional_string(value.get("margin_asset")),
-                margin_mode=_optional_string(value.get("margin_mode")),
-                mark_price=_optional_decimal(value.get("mark_price")),
-                mmr=_optional_decimal(value.get("mmr")),
-                position_value=_optional_decimal(value.get("position_value")),
-                status=_optional_string(value.get("status")),
-                realized_pnl=_optional_decimal(value.get("realized_pnl")),
-                upnl=_optional_decimal(value.get("upnl")),
-                time=_optional_string(value.get("time")),
-                updated_at=_optional_string(value.get("updated_at")),
-            )
-            for value in values
-        ]
+        return _protocol_decode("query_positions", lambda: _positions_from(values))
 
     async def position_snapshots(self, symbol: str | None = None) -> list[PositionSnapshot]:
         return await self.positions(symbol)
@@ -82,10 +60,13 @@ class AccountApi:
 
     async def position_config(self, symbol: str) -> PositionConfig:
         value = await self._position_config_raw(symbol)
-        return PositionConfig(
-            symbol=str(value["symbol"]),
-            leverage=int(value["leverage"]),
-            margin_mode=MarginMode(str(value["margin_mode"])),
+        return _protocol_decode(
+            "query_position_config",
+            lambda: PositionConfig(
+                symbol=str(value["symbol"]),
+                leverage=int(value["leverage"]),
+                margin_mode=MarginMode(str(value["margin_mode"])),
+            ),
         )
 
     async def position_config_snapshot(self, symbol: str) -> PositionConfig:
@@ -99,7 +80,8 @@ class AccountApi:
         ))
 
     async def change_leverage(self, symbol: str, leverage: int) -> ConfigChangeResult:
-        return _config_change(await self._change_leverage_raw(symbol, leverage))
+        value = await self._change_leverage_raw(symbol, leverage)
+        return _protocol_decode("change_leverage", lambda: _config_change(value))
 
     async def change_leverage_config(self, symbol: str, leverage: int) -> ConfigChangeResult:
         return await self.change_leverage(symbol, leverage)
@@ -116,7 +98,8 @@ class AccountApi:
     async def change_margin_mode(
         self, symbol: str, margin_mode: MarginMode
     ) -> ConfigChangeResult:
-        return _config_change(await self._change_margin_mode_raw(symbol, margin_mode.value))
+        value = await self._change_margin_mode_raw(symbol, margin_mode.value)
+        return _protocol_decode("change_margin_mode", lambda: _config_change(value))
 
     async def change_margin_mode_config(
         self, symbol: str, margin_mode: MarginMode
@@ -154,7 +137,7 @@ class AccountApi:
         values = await self._trades_raw(
             symbol, last_id=last_id, side=side, start=start, end=end, limit=limit
         )
-        return [_trade_from(value) for value in values]
+        return _protocol_decode("query_trades", lambda: [_trade_from(value) for value in values])
 
     async def trade_snapshots(
         self,
@@ -186,7 +169,9 @@ class AccountApi:
             await self._transport.get("/api/query_funding_history", params=params)
         )
         values = response.get("result", response) if isinstance(response, dict) else response
-        return [_funding_from(value) for value in values]
+        return _protocol_decode(
+            "query_funding_history", lambda: [_funding_from(value) for value in values]
+        )
 
     async def _funding_rates_raw(
         self, symbol: str, start_time: int, end_time: int
@@ -202,7 +187,9 @@ class AccountApi:
         self, symbol: str, start_time: int, end_time: int
     ) -> list[FundingRate]:
         values = await self._funding_rates_raw(symbol, start_time, end_time)
-        return [_funding_rate_from(value) for value in values]
+        return _protocol_decode(
+            "query_funding_rates", lambda: [_funding_rate_from(value) for value in values]
+        )
 
     async def funding_rate_snapshots(
         self, symbol: str, start_time: int, end_time: int
@@ -211,6 +198,49 @@ class AccountApi:
 
 
 __all__ = ["AccountApi"]
+
+
+def _protocol_decode(endpoint: str, decoder: Callable[[], _T]) -> _T:
+    try:
+        return decoder()
+    except StandXError:
+        raise
+    except (ArithmeticError, IndexError, KeyError, TypeError, ValueError, OverflowError) as exc:
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            f"malformed response from {endpoint}",
+            retryable=False,
+        ) from exc
+
+
+def _positions_from(values: list[dict[str, Any]]) -> list[PositionSnapshot]:
+    return [
+        PositionSnapshot(
+            id=int(value["id"]),
+            symbol=str(value["symbol"]),
+            qty=_required_decimal(value, "qty"),
+            leverage=int(value["leverage"]),
+            bankruptcy_price=_optional_decimal(value.get("bankruptcy_price")),
+            created_at=_optional_string(value.get("created_at")),
+            entry_price=_optional_decimal(value.get("entry_price")),
+            entry_value=_optional_decimal(value.get("entry_value")),
+            holding_margin=_optional_decimal(value.get("holding_margin")),
+            initial_margin=_optional_decimal(value.get("initial_margin")),
+            liq_price=_optional_decimal(value.get("liq_price")),
+            maint_margin=_optional_decimal(value.get("maint_margin")),
+            margin_asset=_optional_string(value.get("margin_asset")),
+            margin_mode=_optional_string(value.get("margin_mode")),
+            mark_price=_optional_decimal(value.get("mark_price")),
+            mmr=_optional_decimal(value.get("mmr")),
+            position_value=_optional_decimal(value.get("position_value")),
+            status=_optional_string(value.get("status")),
+            realized_pnl=_optional_decimal(value.get("realized_pnl")),
+            upnl=_optional_decimal(value.get("upnl")),
+            time=_optional_string(value.get("time")),
+            updated_at=_optional_string(value.get("updated_at")),
+        )
+        for value in values
+    ]
 
 
 def _required_decimal(value: dict[str, Any], key: str) -> Decimal:

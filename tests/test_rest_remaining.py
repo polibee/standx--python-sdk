@@ -412,6 +412,62 @@ def test_account_api_maps_documented_funding_rate_snapshots() -> None:
     ]
 
 
+def test_account_balance_malformed_success_response_is_protocol_error() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, json={"balance": "10", "equity": "10"}
+            )
+        ),
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(AccountApi(transport).balance())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
+def test_account_position_invalid_decimal_is_protocol_error() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "result": [
+                        {"id": 1, "symbol": "BTC-USD", "qty": "invalid", "leverage": 10}
+                    ]
+                },
+            )
+        ),
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(AccountApi(transport).positions())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
+def test_account_funding_history_malformed_success_response_is_protocol_error() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, json={"result": [{"id": 1, "asset": "DUSD"}]}
+            )
+        ),
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(AccountApi(transport).funding_history())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
 async def _collect_trade_history(api: AccountApi) -> tuple[list[UserTrade], list[FundingPayment]]:
     return await asyncio.gather(api.trade_snapshots("BTC-USD"), api.funding_history("BTC-USD"))
 
