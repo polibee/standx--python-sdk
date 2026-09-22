@@ -565,6 +565,9 @@ Order Response Stream 请求必须严格使用 `session_id`、`request_id`、`me
 `message`、`request_id` 和可选 `cl_ord_id` 必须是字符串。违反这些类型契约统一返回不可重试的
 `PROTOCOL_ERROR`，不向公共 API 泄漏原生类型异常。
 
+账户、持仓、成交、资金费率和资金费历史列表响应同样必须解析为对象中的 `result` 数组或文档明确
+定义的顶层数组；缺少结果、结果不是数组或数组元素不是对象时统一返回 `PROTOCOL_ERROR`。
+
 `OrderResponseStream.decode_response()`将文档中的响应映射为 `OrderResponseEvent`：`status=accepted`映射为 `accepted`，`code=0`且无 accepted 状态映射为 `success`，`code>=400`映射为 `rejected`，其他情况保留为 `unknown`。解码后只清理对应的 pending request，不会把断线中的 `order:new`或`order:cancel`重新发送，避免产生重复外部副作用。
 
 Order Response 响应缺少 `request_id`、session 不匹配、缺少 `code` 或 `code` 不是 JSON 整数时，必须统一转换为 `StandXError(code=PROTOCOL_ERROR)`，并在可识别时保留 `request_id`；不能向公共 API 泄漏原生 JSON/类型转换异常。

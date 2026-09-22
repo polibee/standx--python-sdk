@@ -549,6 +549,31 @@ def test_account_funding_history_malformed_success_response_is_protocol_error() 
     assert caught.value.retryable is False
 
 
+@pytest.mark.parametrize(
+    "method",
+    ["positions", "trades", "funding_history", "funding_rates"],
+)
+def test_account_list_malformed_success_response_is_protocol_error(method: str) -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(lambda _: httpx.Response(200, json={"unexpected": []})),
+    )
+    api = AccountApi(transport)
+
+    with pytest.raises(StandXError) as caught:
+        if method == "positions":
+            asyncio.run(api.positions())
+        elif method == "trades":
+            asyncio.run(api.trades())
+        elif method == "funding_history":
+            asyncio.run(api.funding_history())
+        else:
+            asyncio.run(api.funding_rates("BTC-USD", 1, 2))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
 async def _collect_trade_history(api: AccountApi) -> tuple[list[UserTrade], list[FundingPayment]]:
     return await asyncio.gather(api.trade_snapshots("BTC-USD"), api.funding_history("BTC-USD"))
 

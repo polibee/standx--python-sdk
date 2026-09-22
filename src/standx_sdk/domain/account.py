@@ -43,9 +43,7 @@ class AccountApi:
     async def _positions_raw(self, symbol: str | None = None) -> list[dict[str, Any]]:
         params = {"symbol": symbol} if symbol else None
         response = _decimalize(await self._transport.get("/api/query_positions", params=params))
-        if isinstance(response, dict):
-            return cast(list[dict[str, Any]], response.get("result", []))
-        return cast(list[dict[str, Any]], response)
+        return _list_payload(response)
 
     async def positions(self, symbol: str | None = None) -> list[PositionSnapshot]:
         values = await self._positions_raw(symbol)
@@ -121,9 +119,7 @@ class AccountApi:
             symbol=symbol, last_id=last_id, side=side, start=start, end=end, limit=limit
         )
         response = _decimalize(await self._transport.get("/api/query_trades", params=params))
-        if isinstance(response, dict):
-            return cast(list[dict[str, Any]], response.get("result", []))
-        return cast(list[dict[str, Any]], response)
+        return _list_payload(response)
 
     async def trades(
         self,
@@ -169,7 +165,7 @@ class AccountApi:
         response = _decimalize(
             await self._transport.get("/api/query_funding_history", params=params)
         )
-        values = response.get("result", response) if isinstance(response, dict) else response
+        values = _list_payload(response)
         return _protocol_decode(
             "query_funding_history", lambda: [_funding_from(value) for value in values]
         )
@@ -177,12 +173,13 @@ class AccountApi:
     async def _funding_rates_raw(
         self, symbol: str, start_time: int, end_time: int
     ) -> list[dict[str, Any]]:
-        return cast(list[dict[str, Any]], _decimalize(
+        response = _decimalize(
             await self._transport.get(
                 "/api/query_funding_rates",
                 params={"symbol": symbol, "start_time": start_time, "end_time": end_time},
             )
-        ))
+        )
+        return _list_payload(response)
 
     async def funding_rates(
         self, symbol: str, start_time: int, end_time: int
@@ -269,6 +266,18 @@ def _balance_from(value: dict[str, Any]) -> BalanceSnapshot:
 def _history_params(**values: object) -> dict[str, object] | None:
     params = {key: value for key, value in values.items() if value is not None}
     return params or None
+
+
+def _list_payload(value: object) -> list[dict[str, Any]]:
+    if isinstance(value, dict):
+        value = value.get("result")
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise StandXError(
+            ErrorCode.PROTOCOL_ERROR,
+            "account list response must be a list or contain a result list",
+            retryable=False,
+        )
+    return cast(list[dict[str, Any]], value)
 
 
 def _optional_decimal(value: Any) -> Decimal | None:
