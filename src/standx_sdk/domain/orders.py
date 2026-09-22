@@ -9,6 +9,7 @@ from ..models.market import InstrumentRules
 from ..models.order import CreateOrderRequest, MarginMode, Order
 from ..transport.http import HttpTransport
 from ..validation.orders import validate_order
+from .numbers import finite_decimal
 
 _T = TypeVar("_T")
 
@@ -203,17 +204,17 @@ def _order_from(value: object) -> Order:
         symbol=str(typed["symbol"]),
         side=str(typed["side"]),
         order_type=str(typed["order_type"]),
-        qty=Decimal(str(typed["qty"])),
-        fill_qty=Decimal(str(typed["fill_qty"])),
-        fill_avg_price=Decimal(str(typed["fill_avg_price"])),
+        qty=finite_decimal(typed["qty"]),
+        fill_qty=finite_decimal(typed["fill_qty"]),
+        fill_avg_price=finite_decimal(typed["fill_avg_price"]),
         status=str(typed["status"]),
         time_in_force=str(typed["time_in_force"]),
         reduce_only=bool(typed["reduce_only"]),
-        price=None if typed.get("price") is None else Decimal(str(typed["price"])),
+        price=None if typed.get("price") is None else finite_decimal(typed["price"]),
         leverage=None if typed.get("leverage") is None else int(typed["leverage"]),
         margin_mode=typed.get("margin_mode"),
         avail_locked=(
-            None if typed.get("avail_locked") is None else Decimal(str(typed["avail_locked"]))
+            None if typed.get("avail_locked") is None else finite_decimal(typed["avail_locked"])
         ),
         closed_block=None if typed.get("closed_block") is None else int(typed["closed_block"]),
         created_at=typed.get("created_at"),
@@ -221,7 +222,7 @@ def _order_from(value: object) -> Order:
             None if typed.get("created_block") is None else int(typed["created_block"])
         ),
         liq_id=None if typed.get("liq_id") is None else int(typed["liq_id"]),
-        margin=None if typed.get("margin") is None else Decimal(str(typed["margin"])),
+        margin=None if typed.get("margin") is None else finite_decimal(typed["margin"]),
         payload=typed.get("payload"),
         position_id=None if typed.get("position_id") is None else int(typed["position_id"]),
         remark=typed.get("remark"),

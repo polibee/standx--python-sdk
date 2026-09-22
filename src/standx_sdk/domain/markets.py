@@ -14,6 +14,7 @@ from ..models.market import (
 )
 from ..models.trade import RecentTrade
 from ..transport.http import HttpTransport
+from .numbers import finite_decimal
 
 _T = TypeVar("_T")
 
@@ -112,9 +113,9 @@ class MarketsApi:
             lambda: [
                 RecentTrade(
                     symbol=str(value["symbol"]),
-                    price=Decimal(str(value["price"])),
-                    qty=Decimal(str(value["qty"])),
-                    quote_qty=Decimal(str(value["quote_qty"])),
+                    price=finite_decimal(value["price"]),
+                    qty=finite_decimal(value["qty"]),
+                    quote_qty=finite_decimal(value["quote_qty"]),
                     is_buyer_taker=bool(value["is_buyer_taker"]),
                     time=value.get("time") if isinstance(value.get("time"), str) else None,
                 )
@@ -154,17 +155,17 @@ def _instrument_rules(values: list[dict[str, Any]]) -> InstrumentRules:
         quote_decimals=int(value["quote_decimals"]),
         price_tick_decimals=int(value["price_tick_decimals"]),
         qty_tick_decimals=int(value["qty_tick_decimals"]),
-        min_order_qty=Decimal(str(value["min_order_qty"])),
-        max_order_qty=Decimal(str(value["max_order_qty"])),
-        max_position_size=Decimal(str(value["max_position_size"])),
+        min_order_qty=finite_decimal(value["min_order_qty"]),
+        max_order_qty=finite_decimal(value["max_order_qty"]),
+        max_position_size=finite_decimal(value["max_position_size"]),
         max_leverage=int(value["max_leverage"]),
         def_leverage=int(value["def_leverage"]),
         max_open_orders=int(value["max_open_orders"]),
-        price_cap_ratio=Decimal(str(value["price_cap_ratio"])),
-        price_floor_ratio=Decimal(str(value["price_floor_ratio"])),
-        maker_fee=Decimal(str(value["maker_fee"])),
-        taker_fee=Decimal(str(value["taker_fee"])),
-        depth_ticks=tuple(Decimal(item) for item in str(value["depth_ticks"]).split(",")),
+        price_cap_ratio=finite_decimal(value["price_cap_ratio"]),
+        price_floor_ratio=finite_decimal(value["price_floor_ratio"]),
+        maker_fee=finite_decimal(value["maker_fee"]),
+        taker_fee=finite_decimal(value["taker_fee"]),
+        depth_ticks=tuple(finite_decimal(item) for item in str(value["depth_ticks"]).split(",")),
         enabled=value.get("enabled") if isinstance(value.get("enabled"), bool) else None,
         created_at=value.get("created_at") if isinstance(value.get("created_at"), str) else None,
         updated_at=value.get("updated_at") if isinstance(value.get("updated_at"), str) else None,
@@ -174,25 +175,25 @@ def _instrument_rules(values: list[dict[str, Any]]) -> InstrumentRules:
 def _market_overview(response: dict[str, Any]) -> MarketOverview:
     summary = response["summary"]
     return MarketOverview(
-        open_interest_notional=Decimal(str(summary["open_interest_notional"])),
+        open_interest_notional=finite_decimal(summary["open_interest_notional"]),
         symbol_count=int(summary["symbol_count"]),
-        volume_quote_24h=Decimal(str(summary["volume_quote_24h"])),
+        volume_quote_24h=finite_decimal(summary["volume_quote_24h"]),
         symbols=tuple(_overview_symbol(value) for value in response["symbols"]),
     )
 
 
 def _optional_decimal(value: Any) -> Decimal | None:
-    return None if value is None else Decimal(str(value))
+    return None if value is None else finite_decimal(value)
 
 
 def _levels(value: Any) -> tuple[tuple[Decimal, Decimal], ...]:
-    return tuple((Decimal(str(level[0])), Decimal(str(level[1]))) for level in value)
+    return tuple((finite_decimal(level[0]), finite_decimal(level[1])) for level in value)
 
 
 def _spread(value: Any) -> tuple[Decimal, Decimal] | None:
     if not isinstance(value, list) or len(value) != 2:
         return None
-    return Decimal(str(value[0])), Decimal(str(value[1]))
+    return finite_decimal(value[0]), finite_decimal(value[1])
 
 
 def _overview_symbol(value: dict[str, Any]) -> MarketOverviewSymbol:
@@ -200,14 +201,14 @@ def _overview_symbol(value: dict[str, Any]) -> MarketOverviewSymbol:
         base=str(value["base"]),
         quote=str(value["quote"]),
         symbol=str(value["symbol"]),
-        last_price=Decimal(str(value["last_price"])),
-        mark_price=Decimal(str(value["mark_price"])),
-        funding_rate=Decimal(str(value["funding_rate"])),
-        open_interest=Decimal(str(value["open_interest"])),
-        open_interest_notional=Decimal(str(value["open_interest_notional"])),
+        last_price=finite_decimal(value["last_price"]),
+        mark_price=finite_decimal(value["mark_price"]),
+        funding_rate=finite_decimal(value["funding_rate"]),
+        open_interest=finite_decimal(value["open_interest"]),
+        open_interest_notional=finite_decimal(value["open_interest_notional"]),
         price_change_pct=float(value["price_change_pct"]),
-        volume_24h=Decimal(str(value["volume_24h"])),
-        volume_quote_24h=Decimal(str(value["volume_quote_24h"])),
+        volume_24h=finite_decimal(value["volume_24h"]),
+        volume_quote_24h=finite_decimal(value["volume_quote_24h"]),
         time=str(value["time"]),
     )
 
@@ -216,7 +217,7 @@ def _symbol_market(value: dict[str, Any]) -> SymbolMarket:
     return SymbolMarket(
         symbol=str(value["symbol"]),
         last_price=_optional_decimal(value.get("last_price")),
-        funding_rate=Decimal(str(value["funding_rate"])),
+        funding_rate=finite_decimal(value["funding_rate"]),
         base=value.get("base") if isinstance(value.get("base"), str) else None,
         quote=value.get("quote") if isinstance(value.get("quote"), str) else None,
         mark_price=_optional_decimal(value.get("mark_price")),

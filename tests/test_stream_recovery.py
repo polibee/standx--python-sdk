@@ -12,6 +12,21 @@ from standx_sdk.streams.order_response import OrderResponseStream
 from standx_sdk.testing.fake_websocket import FakeWebSocketServer
 
 
+def test_market_stream_rejects_non_finite_decimal_payloads() -> None:
+    stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
+
+    with pytest.raises(StandXError) as caught:
+        stream.decode(
+            {
+                "channel": "price",
+                "data": {"symbol": "BTC-USD", "last_price": "Infinity"},
+            }
+        )
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
 class FlakyTransport:
     def __init__(self, failures: int) -> None:
         self.failures = failures

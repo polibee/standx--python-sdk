@@ -8,6 +8,7 @@ from typing import Any
 
 from websockets.exceptions import WebSocketException
 
+from ..domain.numbers import finite_decimal
 from ..errors import ErrorCode, StandXError
 from ..models.stream import (
     BalanceEvent,
@@ -368,9 +369,7 @@ class MarketStream(StreamBase):
 
 
 def _decimal(value: Any) -> Any:
-    from decimal import Decimal
-
-    return Decimal(str(value))
+    return finite_decimal(value)
 
 
 def _optional_decimal(value: Any) -> Any:

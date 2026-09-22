@@ -222,6 +222,12 @@ x-request-signature
 
 `AuthService` 对服务端拒绝返回 `AUTH_FAILED`，对缺失或非法 `signedData`、非对象 JWT payload、缺失或类型错误的登录认证字段返回不可重试的 `PROTOCOL_ERROR`；错误消息只包含固定诊断文本，不回显 JWT、签名或完整认证请求体。
 
+### 7.4 数值 DTO 边界
+
+文档中的金额、价格、数量、费率、深度和成交量字段统一映射为有限 `Decimal`。服务端返回
+`NaN`、`Infinity`、`-Infinity` 或其他无法解析的数值时，REST DTO 和 Market Stream DTO
+必须返回不可重试的 `PROTOCOL_ERROR`，不得把非有限值交给订单校验、缓存或状态恢复逻辑。
+
 ## 8. REST 设计
 
 REST 分层如下：

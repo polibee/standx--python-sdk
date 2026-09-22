@@ -28,6 +28,7 @@ All notable changes to this project are documented here.
 - Serialized concurrent REST refreshes for the same client order ID while keeping different orders independent.
 - Applied the same refresh lock to pending order-response recovery and user order events.
 - Preserved Market Stream authentication streams across reconnects and cleared stale auth state after reconnect failures.
+- Rejected non-finite numeric values in REST and Market Stream DTO decoding as protocol errors.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.

@@ -318,6 +318,23 @@ def test_symbol_price_invalid_decimal_is_protocol_error() -> None:
     assert caught.retryable is False
 
 
+def test_symbol_price_non_finite_decimal_is_protocol_error() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, json={"symbol": "BTC-USD", "last_price": "Infinity"}
+            )
+        ),
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(MarketsApi(transport).symbol_price("BTC-USD"))
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
 def test_overview_missing_summary_field_is_protocol_error() -> None:
     transport = HttpTransport(
         "https://perps.standx.com",

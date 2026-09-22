@@ -8,6 +8,7 @@ from ..models.account_config import ConfigChangeResult, PositionConfig
 from ..models.order import MarginMode
 from ..models.trade import FundingPayment, FundingRate, UserTrade
 from ..transport.http import HttpTransport
+from .numbers import finite_decimal
 
 _T = TypeVar("_T")
 
@@ -246,7 +247,7 @@ def _positions_from(values: list[dict[str, Any]]) -> list[PositionSnapshot]:
 def _required_decimal(value: dict[str, Any], key: str) -> Decimal:
     if key not in value:
         raise ValueError(f"StandX response missing {key}")
-    return Decimal(str(value[key]))
+    return finite_decimal(value[key])
 
 
 def _balance_from(value: dict[str, Any]) -> BalanceSnapshot:
@@ -271,7 +272,7 @@ def _history_params(**values: object) -> dict[str, object] | None:
 
 
 def _optional_decimal(value: Any) -> Decimal | None:
-    return None if value is None else Decimal(str(value))
+    return None if value is None else finite_decimal(value)
 
 
 def _optional_string(value: Any) -> str | None:
@@ -284,12 +285,12 @@ def _trade_from(value: dict[str, Any]) -> UserTrade:
         order_id=int(value["order_id"]),
         symbol=str(value["symbol"]),
         side=str(value["side"]),
-        price=Decimal(str(value["price"])),
-        qty=Decimal(str(value["qty"])),
-        value=Decimal(str(value["value"])),
+        price=finite_decimal(value["price"]),
+        qty=finite_decimal(value["qty"]),
+        value=finite_decimal(value["value"]),
         fee_asset=str(value["fee_asset"]),
-        fee_qty=Decimal(str(value["fee_qty"])),
-        pnl=Decimal(str(value["pnl"])),
+        fee_qty=finite_decimal(value["fee_qty"]),
+        pnl=finite_decimal(value["pnl"]),
         created_at=_optional_string(value.get("created_at")),
         updated_at=_optional_string(value.get("updated_at")),
     )
@@ -300,7 +301,7 @@ def _funding_from(value: dict[str, Any]) -> FundingPayment:
         id=int(value["id"]),
         asset=str(value["asset"]),
         symbol=str(value["symbol"]),
-        qty=Decimal(str(value["qty"])),
+        qty=finite_decimal(value["qty"]),
         txn_type=str(value["txn_type"]),
         transact_time=str(value["transact_time"]),
         created_at=_optional_string(value.get("created_at")),
@@ -312,10 +313,10 @@ def _funding_rate_from(value: dict[str, Any]) -> FundingRate:
     return FundingRate(
         id=int(value["id"]),
         symbol=str(value["symbol"]),
-        funding_rate=Decimal(str(value["funding_rate"])),
-        index_price=Decimal(str(value["index_price"])),
-        mark_price=Decimal(str(value["mark_price"])),
-        premium=Decimal(str(value["premium"])),
+        funding_rate=finite_decimal(value["funding_rate"]),
+        index_price=finite_decimal(value["index_price"]),
+        mark_price=finite_decimal(value["mark_price"]),
+        premium=finite_decimal(value["premium"]),
         time=_optional_string(value.get("time")),
         created_at=_optional_string(value.get("created_at")),
         updated_at=_optional_string(value.get("updated_at")),

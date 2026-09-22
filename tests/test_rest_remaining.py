@@ -429,6 +429,29 @@ def test_account_balance_malformed_success_response_is_protocol_error() -> None:
     assert caught.value.retryable is False
 
 
+def test_account_balance_non_finite_decimal_is_protocol_error() -> None:
+    transport = HttpTransport(
+        "https://perps.standx.com",
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "balance": "NaN",
+                    "available": "10",
+                    "frozen": "0",
+                    "equity": "10",
+                },
+            )
+        ),
+    )
+
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(AccountApi(transport).balance())
+
+    assert caught.value.code is ErrorCode.PROTOCOL_ERROR
+    assert caught.value.retryable is False
+
+
 def test_account_position_invalid_decimal_is_protocol_error() -> None:
     transport = HttpTransport(
         "https://perps.standx.com",
