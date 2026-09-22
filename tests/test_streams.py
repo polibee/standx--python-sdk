@@ -125,6 +125,44 @@ def test_closed_market_stream_does_not_reconnect() -> None:
     asyncio.run(scenario())
 
 
+def test_closed_market_stream_does_not_enter_connect_backoff() -> None:
+    transport = FakeTransport()
+    stream = MarketStream(
+        "wss://perps.standx.com/ws-stream/v1", transport=transport  # type: ignore[arg-type]
+    )
+    delays: list[float] = []
+
+    async def scenario() -> None:
+        await stream.close_async()
+        with pytest.raises(RuntimeError, match="closed"):
+            await stream.connect_with_backoff(sleep=lambda delay: delays.append(delay))
+
+    asyncio.run(scenario())
+
+    assert transport.connect_count == 0
+    assert delays == []
+
+
+def test_closed_order_response_stream_does_not_enter_connect_backoff() -> None:
+    transport = FakeTransport()
+    stream = OrderResponseStream(
+        "wss://perps.standx.com/ws-api/v1",
+        session_id="session-1",
+        transport=transport,  # type: ignore[arg-type]
+    )
+    delays: list[float] = []
+
+    async def scenario() -> None:
+        await stream.close_async()
+        with pytest.raises(RuntimeError, match="closed"):
+            await stream.connect_with_backoff(sleep=lambda delay: delays.append(delay))
+
+    asyncio.run(scenario())
+
+    assert transport.connect_count == 0
+    assert delays == []
+
+
 def test_market_stream_authenticates_before_user_subscription() -> None:
     transport = AuthFakeTransport()
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1", transport=transport)  # type: ignore[arg-type]

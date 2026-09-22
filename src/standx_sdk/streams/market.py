@@ -68,6 +68,8 @@ class MarketStream(StreamBase):
         jitter: Callable[[float], float] | None = None,
         sleep: Callable[[float], object] | None = None,
     ) -> None:
+        if self.closed:
+            raise RuntimeError("closed stream cannot connect")
         if max_attempts < 1:
             raise ValueError("max_attempts must be positive")
         if initial_delay < 0:
