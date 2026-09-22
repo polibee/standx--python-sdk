@@ -119,6 +119,53 @@ def test_malformed_symbol_info_is_not_cached() -> None:
     assert requests == 2
 
 
+def test_concurrent_symbol_info_requests_share_one_in_flight_fetch() -> None:
+    requests = 0
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "base_asset": "BTC",
+                    "base_decimals": 9,
+                    "quote_asset": "DUSD",
+                    "quote_decimals": 9,
+                    "price_tick_decimals": 2,
+                    "qty_tick_decimals": 4,
+                    "min_order_qty": "0.0001",
+                    "max_order_qty": "100",
+                    "max_position_size": "1000",
+                    "max_leverage": "20",
+                    "def_leverage": "10",
+                    "max_open_orders": "100",
+                    "price_cap_ratio": "0.3",
+                    "price_floor_ratio": "0.3",
+                    "maker_fee": "0.0001",
+                    "taker_fee": "0.0004",
+                    "depth_ticks": "0.01",
+                    "symbol": "BTC-USD",
+                }
+            ],
+        )
+
+    class DelayedTransport:
+        async def get(self, path: str, *, params: object = None) -> list[dict[str, object]]:
+            await asyncio.sleep(0)
+            response = handler(httpx.Request("GET", "https://perps.standx.com"))
+            return response.json()  # type: ignore[no-any-return]
+
+    api = MarketsApi(DelayedTransport())  # type: ignore[arg-type]
+
+    async def collect() -> None:
+        await asyncio.gather(*(api.symbol_info("BTC-USD") for _ in range(5)))
+
+    asyncio.run(collect())
+    assert requests == 1
+
+
 def test_market_api_maps_documented_market_and_depth_dtos() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/api/query_market_overview":

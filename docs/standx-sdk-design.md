@@ -324,7 +324,7 @@ class OrderValidationError(StandXError):
 
 错误信息至少指出字段、实际值和违反的规则，例如数量不满足步长、价格超过精度或名义价值低于最小值。服务端最终校验仍然有效，SDK 本地校验不能被视为服务端接受保证。
 
-`MarketsApi.symbol_info()`会缓存成功解析的 `InstrumentRules`；传入 `refresh=True`可强制重新查询，`clear_symbol_info_cache(symbol=None)`可清理单个标的或全部缓存。只有成功完成 DTO 映射的结果才会写入缓存；规则查询失败时不会污染已有缓存，订单调用方可显式刷新后再进行本地校验。订单创建前如果规则不存在或已过期，SDK 应先刷新规则；刷新失败时拒绝创建订单，不使用过期规则猜测是否可以下单。
+`MarketsApi.symbol_info()`会缓存成功解析的 `InstrumentRules`；同一标的的并发首次加载共享一个 in-flight REST 请求，不同标的仍可并发。传入 `refresh=True`可强制重新查询，`clear_symbol_info_cache(symbol=None)`可清理单个标的或全部缓存。只有成功完成 DTO 映射的结果才会写入缓存；规则查询失败时不会污染已有缓存，订单调用方可显式刷新后再进行本地校验。订单创建前如果规则不存在或已过期，SDK 应先刷新规则；刷新失败时拒绝创建订单，不使用过期规则猜测是否可以下单。
 
 ### 8.5 杠杆、保证金和持仓语义
 

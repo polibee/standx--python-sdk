@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Callable
 from decimal import Decimal
 from typing import Any, TypeVar, cast
@@ -21,19 +22,24 @@ class MarketsApi:
     def __init__(self, transport: HttpTransport) -> None:
         self._transport = transport
         self._symbol_info_cache: dict[str, InstrumentRules] = {}
+        self._symbol_info_locks: dict[str, asyncio.Lock] = {}
 
     async def symbol_info(self, symbol: str, *, refresh: bool = False) -> InstrumentRules:
         if not refresh and symbol in self._symbol_info_cache:
             return self._symbol_info_cache[symbol]
-        values: list[dict[str, Any]] = await self._transport.get(
-            "/api/query_symbol_info", params={"symbol": symbol}
-        )
-        rules = _protocol_decode(
-            "query_symbol_info",
-            lambda: _instrument_rules(values),
-        )
-        self._symbol_info_cache[symbol] = rules
-        return rules
+        lock = self._symbol_info_locks.setdefault(symbol, asyncio.Lock())
+        async with lock:
+            if not refresh and symbol in self._symbol_info_cache:
+                return self._symbol_info_cache[symbol]
+            values: list[dict[str, Any]] = await self._transport.get(
+                "/api/query_symbol_info", params={"symbol": symbol}
+            )
+            rules = _protocol_decode(
+                "query_symbol_info",
+                lambda: _instrument_rules(values),
+            )
+            self._symbol_info_cache[symbol] = rules
+            return rules
 
     def clear_symbol_info_cache(self, symbol: str | None = None) -> None:
         if symbol is None:
