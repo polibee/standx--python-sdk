@@ -32,6 +32,7 @@ All notable changes to this project are documented here.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.
 - Normalized malformed Market Stream DTO payloads to the stable protocol error while preserving unknown-channel validation.
+- Completed README examples for login, typed REST queries, asynchronous order responses, cancellation, and user streams.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.
