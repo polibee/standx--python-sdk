@@ -86,9 +86,7 @@ client = StandXClient(
 
 如果你还没有连接过 StandX 钱包，请在首次连接钱包前打开邀请链接：
 
-```yaml
-首次注册 StandX: "https://standx.com/referral?code=niubiii"
-```
+<a href="https://standx.com/referral?code=niubiii"><img alt="使用邀请注册链接 StandX" src="https://img.shields.io/badge/%E4%BD%BF%E7%94%A8%E9%82%80%E8%AF%B7%E6%B3%A8%E5%86%8C%20StandX-niubiii-2563eb?style=for-the-badge&labelColor=111827"></a>
 
 邀请码属于官方网页注册流程，不是 REST 下单参数。SDK 不会把邀请码加入认证或交易请求。
 已经使用过 StandX 的钱包是否可以补绑邀请码，应以 StandX 当前网页规则为准，SDK 不假设

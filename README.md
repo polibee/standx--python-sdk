@@ -88,9 +88,7 @@ client = StandXClient(
 If you have never connected a wallet to StandX, open the referral link before the first wallet
 connection:
 
-```yaml
-first_time_standx_registration: "https://standx.com/referral?code=niubiii"
-```
+<a href="https://standx.com/referral?code=niubiii"><img alt="Join StandX with referral" src="https://img.shields.io/badge/Join%20StandX%20with%20referral-niubiii-2563eb?style=for-the-badge&labelColor=111827"></a>
 
 Referral codes belong to the official web onboarding flow. They are not REST order parameters,
 and this SDK does not try to attach them to authentication or trading requests. Existing wallet
