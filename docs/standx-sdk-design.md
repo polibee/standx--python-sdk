@@ -611,7 +611,7 @@ class ErrorCode(str, Enum):
 
 ### 11.3 限流
 
-SDK 内置 `CreditRateLimiter`，默认使用 StandX 文档中的每请求 45 credits、每秒补充 1,000 credits、900 credits burst capacity。它在每个 REST 请求前执行 token-bucket 检查；服务端 429 仍然转换为 `RATE_LIMITED` 并保留 `retry-after`。限流器支持注入时钟和 sleep，便于离线确定性测试，也支持调用方替换参数以应对文档未来调整。限流不能通过无限等待掩盖调用方错误。
+SDK 内置 `CreditRateLimiter`，默认使用 StandX 文档中的每请求 45 credits、每秒补充 1,000 credits、900 credits burst capacity。它在每个 REST 请求前执行 token-bucket 检查；服务端 429 仍然转换为 `RATE_LIMITED` 并保留 `retry-after`。限流器支持注入时钟和 sleep，便于离线确定性测试，也支持调用方替换参数以应对文档未来调整。配置值和单次 cost 必须是有限正数，且 cost 不得超过 capacity；限流不能通过无限等待掩盖调用方错误。
 
 ## 12. 测试策略
 

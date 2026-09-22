@@ -1,6 +1,7 @@
 """StandX credit-based token bucket limiter."""
 
 import asyncio
+import math
 import time
 from collections.abc import Awaitable, Callable
 
@@ -17,12 +18,12 @@ class CreditRateLimiter:
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
-        if cost_per_request <= 0:
-            raise ValueError("cost_per_request must be positive")
-        if replenish_rate <= 0:
-            raise ValueError("replenish_rate must be positive")
-        if capacity <= 0:
-            raise ValueError("capacity must be positive")
+        if not math.isfinite(cost_per_request) or cost_per_request <= 0:
+            raise ValueError("cost_per_request must be finite and positive")
+        if not math.isfinite(replenish_rate) or replenish_rate <= 0:
+            raise ValueError("replenish_rate must be finite and positive")
+        if not math.isfinite(capacity) or capacity <= 0:
+            raise ValueError("capacity must be finite and positive")
         if cost_per_request > capacity:
             raise ValueError("cost_per_request must not exceed capacity")
         self.cost_per_request = cost_per_request
@@ -40,8 +41,8 @@ class CreditRateLimiter:
 
     async def acquire(self, cost: float | None = None) -> None:
         requested = self.cost_per_request if cost is None else cost
-        if requested <= 0 or requested > self.capacity:
-            raise ValueError("cost must be positive and no greater than capacity")
+        if not math.isfinite(requested) or requested <= 0 or requested > self.capacity:
+            raise ValueError("cost must be finite, positive, and no greater than capacity")
         while True:
             self._refill()
             if self._credits >= requested:

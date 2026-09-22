@@ -1,4 +1,5 @@
 import asyncio
+import math
 
 from standx_sdk.resilience.rate_limit import CreditRateLimiter
 
@@ -31,3 +32,29 @@ def test_credit_limiter_rejects_invalid_configuration() -> None:
         assert "capacity" in str(error)
     else:
         raise AssertionError("capacity must be positive")
+
+
+def test_credit_limiter_rejects_non_finite_configuration_and_cost() -> None:
+    for kwargs in (
+        {"cost_per_request": math.nan},
+        {"replenish_rate": math.inf},
+        {"capacity": math.nan},
+    ):
+        try:
+            CreditRateLimiter(**kwargs)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("non-finite limiter configuration must fail")
+
+    limiter = CreditRateLimiter()
+
+    async def acquire_non_finite_cost() -> None:
+        await limiter.acquire(math.nan)
+
+    try:
+        asyncio.run(acquire_non_finite_cost())
+    except ValueError as error:
+        assert "cost" in str(error)
+    else:
+        raise AssertionError("non-finite request cost must fail")
