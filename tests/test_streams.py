@@ -64,6 +64,18 @@ class WrongTypeAuthFakeTransport(FakeTransport):
         return '{"channel":"auth","data":{"code":"200","msg":"success"}}'
 
 
+class SubscriptionSendFailureTransport(FakeTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.fail_next_send = True
+
+    async def send(self, message: str) -> None:
+        if self.fail_next_send:
+            self.fail_next_send = False
+            raise ConnectionError("subscription send failed")
+        await super().send(message)
+
+
 def test_market_stream_builds_documented_subscription_envelope() -> None:
     stream = MarketStream("wss://perps.standx.com/ws-stream/v1")
 
@@ -257,6 +269,23 @@ def test_market_stream_wraps_subscription_restore_failure() -> None:
     assert caught.value.code is ErrorCode.WS_RESUBSCRIBE_FAILED
     assert "price:BTC-USD" in caught.value.message
     assert isinstance(caught.value.__cause__, ConnectionError)
+
+
+def test_market_stream_does_not_record_subscription_until_send_succeeds() -> None:
+    transport = SubscriptionSendFailureTransport()
+    stream = MarketStream(
+        "wss://perps.standx.com/ws-stream/v1", transport=transport  # type: ignore[arg-type]
+    )
+
+    async def scenario() -> None:
+        await stream.connect()
+        with pytest.raises(ConnectionError):
+            await stream.subscribe("price", "BTC-USD")
+        await stream.reconnect()
+
+    asyncio.run(scenario())
+
+    assert transport.sent == []
 
 
 def test_websocket_transport_passes_ping_configuration(monkeypatch: pytest.MonkeyPatch) -> None:

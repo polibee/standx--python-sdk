@@ -97,11 +97,11 @@ class MarketStream(StreamBase):
         if channel in {"order", "position", "balance", "trade"} and not self.authenticated:
             raise RuntimeError("authenticate before subscribing to user channels")
         subscription = (channel, symbol)
-        if subscription not in self._subscriptions:
-            self._subscriptions.append(subscription)
         await self.transport.send(
             json.dumps(self.subscription(channel, symbol), separators=(",", ":"))
         )
+        if subscription not in self._subscriptions:
+            self._subscriptions.append(subscription)
 
     async def authenticate(
         self,

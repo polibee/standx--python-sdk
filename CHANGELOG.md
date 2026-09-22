@@ -35,6 +35,7 @@ All notable changes to this project are documented here.
 - Completed README examples for login, typed REST queries, asynchronous order responses, cancellation, and user streams.
 - Enforced session correlation in direct Order Response resolution without clearing mismatched pending requests.
 - Enforced strict JSON-integer validation for Market Stream authentication and Order Response codes.
+- Recorded Market Stream subscriptions only after successful transport sends.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.
