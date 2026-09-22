@@ -228,6 +228,14 @@ x-request-signature
 在访问网络前检查过期时间，已过期时直接返回不可重试的 `TOKEN_EXPIRED`；SDK 不自动刷新 token，
 调用方必须重新登录。opaque token 没有可解析的 `exp` 时保持兼容，不做本地过期判断。
 
+`StandXClient.reauthenticate(access_token=...)` 支持 token-only 会话显式恢复；省略
+参数时复用已注入的 `WalletSigner` 重新执行登录。也可以通过 `auth_recovery` 注入
+异步 token 恢复回调。恢复先更新共享 REST transport，再对已认证的 Market Stream
+重放原用户 channel 和 `impersonate` 参数。JWT 本地过期或安全 GET 收到 401 时，
+transport 最多调用恢复回调一次并重试该 GET；POST 不因 401 自动重放。Order Response
+Stream 的未确认请求不自动重放，仍保持未知状态并通过 REST 查询恢复，避免认证恢复
+造成重复下单或重复撤单。
+
 `expires_seconds` 必须是正整数，SDK 在发出认证请求前拒绝零、负数、布尔值和浮点值。
 
 ### 7.4 数值 DTO 边界

@@ -51,6 +51,9 @@ All notable changes to this project are documented here.
 - Hardened leverage and margin-mode configuration boundaries.
 - Preserved OrderStateReconciler retryability when REST refreshes fail before watermarking.
 - Added explicit JWT injection and clearing for token-only client sessions.
+- Added explicit JWT and wallet-login authentication recovery for REST and Market Stream sessions.
+- Added one-shot authentication recovery for expired tokens and safe GET 401 responses; mutations are never replayed.
+- Added offline protocol fixtures for documented auth, user-order, and Order Response envelopes.
 - Preserved Market Stream top-level `seq` values in all typed channel events.
 - Normalized malformed Order Response status codes to the stable protocol error.
 - Normalized Market Stream authentication rejection and malformed responses to stable SDK errors.

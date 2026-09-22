@@ -1,0 +1,7 @@
+{
+  "session_id": "fixture-session",
+  "request_id": "request-1",
+  "code": 202,
+  "status": "accepted",
+  "message": "request accepted"
+}

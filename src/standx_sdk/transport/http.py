@@ -4,7 +4,7 @@ import json
 import math
 import time
 import uuid
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, Protocol
 
 import httpx
@@ -32,6 +32,7 @@ class HttpTransport:
         session_id: str | None = None,
         request_signer: RequestSigner | None = None,
         rate_limiter: CreditRateLimiter | None = None,
+        auth_recovery: Callable[[], Awaitable[str]] | None = None,
     ) -> None:
         if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be finite and positive")
@@ -47,6 +48,7 @@ class HttpTransport:
             self._headers["x-session-id"] = session_id
         self._request_signer = request_signer
         self._rate_limiter = rate_limiter or CreditRateLimiter()
+        self._auth_recovery = auth_recovery
         self._token_expires_at: int | None = None
         self._closed = False
 
@@ -65,6 +67,9 @@ class HttpTransport:
     def set_token_expiry(self, expires_at: int | None) -> None:
         self._token_expires_at = expires_at
 
+    def set_auth_recovery(self, recovery: Callable[[], Awaitable[str]] | None) -> None:
+        self._auth_recovery = recovery
+
     async def get(
         self,
         path: str,
@@ -74,8 +79,17 @@ class HttpTransport:
     ) -> Any:
         if retry_policy is not None:
             return await retry_policy.execute(lambda: self.get(path, params=params))
+        return await self._get_once(path, params=params, allow_auth_recovery=True)
+
+    async def _get_once(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None,
+        allow_auth_recovery: bool,
+    ) -> Any:
         self._ensure_open()
-        self._ensure_token_valid()
+        await self._ensure_token_valid()
         await self._rate_limiter.acquire()
         try:
             response = await self._client.get(path, params=params, headers=self._headers)
@@ -87,7 +101,15 @@ class HttpTransport:
             raise StandXError(
                 ErrorCode.PROTOCOL_ERROR, "HTTP connection failed", retryable=True
             ) from exc
-        self._raise_for_status(response)
+        try:
+            self._raise_for_status(response)
+        except StandXError:
+            if response.status_code == 401 and allow_auth_recovery and self._auth_recovery is not None:
+                await self._recover_authentication()
+                return await self._get_once(
+                    path, params=params, allow_auth_recovery=False
+                )
+            raise
         return self._decode_json(response)
 
     async def get_text(
@@ -97,7 +119,7 @@ class HttpTransport:
         params: Mapping[str, Any] | None = None,
     ) -> str:
         self._ensure_open()
-        self._ensure_token_valid()
+        await self._ensure_token_valid()
         await self._rate_limiter.acquire()
         try:
             response = await self._client.get(path, params=params, headers=self._headers)
@@ -126,7 +148,7 @@ class HttpTransport:
                 lambda: self.post(path, json=json, signed=signed, params=params)
             )
         self._ensure_open()
-        self._ensure_token_valid()
+        await self._ensure_token_valid()
         await self._rate_limiter.acquire()
         headers = dict(self._headers)
         if signed:
@@ -209,13 +231,31 @@ class HttpTransport:
                 retryable=False,
             )
 
-    def _ensure_token_valid(self) -> None:
+    async def _ensure_token_valid(self) -> None:
         if self._token_expires_at is not None and time.time() >= self._token_expires_at:
+            if self._auth_recovery is None:
+                raise StandXError(
+                    ErrorCode.TOKEN_EXPIRED,
+                    "authentication token has expired",
+                    retryable=False,
+                )
+            await self._recover_authentication()
+
+    async def _recover_authentication(self) -> None:
+        if self._auth_recovery is None:
             raise StandXError(
-                ErrorCode.TOKEN_EXPIRED,
-                "authentication token has expired",
+                ErrorCode.AUTH_FAILED,
+                "authentication recovery is not configured",
                 retryable=False,
             )
+        token = await self._auth_recovery()
+        if not isinstance(token, str) or not token.strip():
+            raise StandXError(
+                ErrorCode.AUTH_FAILED,
+                "authentication recovery did not return a token",
+                retryable=False,
+            )
+        self.set_token(token)
 
 
 def json_module_dumps(value: Mapping[str, object]) -> str:

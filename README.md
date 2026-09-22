@@ -128,6 +128,20 @@ Bearer 认证；`Ed25519RequestSigner` 负责文档要求的请求体签名。�
 自动刷新；应用应重新登录或重新注入 token。可通过
 `client.auth.set_access_token(None)` 清理共享 REST transport 的认证状态。
 
+认证过期后可显式恢复：传入新的 JWT，或省略参数让已配置的 `WalletSigner`
+重新执行登录。REST token 会先更新，已认证的 Market Stream 会使用原来的
+用户 channel 和 impersonation 参数重新认证；Order Response Stream 中未确认
+的订单请求不会自动重放，必须通过订单查询恢复。
+
+也可以通过 `StandXClient(auth_recovery=...)` 注入异步恢复回调。回调会在本地
+JWT 过期或 GET 请求收到 401 时执行一次；安全 GET 会重试一次，POST 请求不会
+因 401 自动重放，避免重复下单、撤单或修改杠杆。
+
+```python
+await client.reauthenticate(new_token)
+# 钱包模式：await client.reauthenticate()
+```
+
 市场 K 线使用文档定义的分辨率（例如 `1T`、`3S`、`1`、`5`、`15`、`60`、`1D`、`1W`、`1M`）；SDK 会校验并行数组长度和有限 Decimal 数值。`client.markets.health()`只接受服务端纯文本 `OK`，否则返回 `PROTOCOL_ERROR`。
 
 也可以使用异步上下文管理器自动释放资源：

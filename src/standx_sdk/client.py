@@ -1,5 +1,6 @@
 """Public StandX SDK facade."""
 
+from collections.abc import Awaitable, Callable
 from typing import Self
 
 from .auth.service import AuthService, AuthTransport
@@ -51,6 +52,10 @@ class _Streams:
             await stream.close_async()
         self._closed = True
 
+    async def reauthenticate(self, token: str) -> None:
+        for stream in self._created:
+            if isinstance(stream, MarketStream):
+                await stream.reauthenticate(token)
 
 class StandXClient:
     def __init__(
@@ -60,6 +65,7 @@ class StandXClient:
         *,
         access_token: str | None = None,
         request_signer: RequestSigner | None = None,
+        auth_recovery: Callable[[], Awaitable[str]] | None = None,
         http_transport: HttpTransport | None = None,
         auth_transport: AuthTransport | None = None,
     ) -> None:
@@ -81,6 +87,10 @@ class StandXClient:
         )
         if access_token is not None:
             self.auth.set_access_token(access_token)
+        if auth_recovery is not None:
+            transport.set_auth_recovery(auth_recovery)
+        elif signer is not None:
+            transport.set_auth_recovery(self.reauthenticate)
         self.markets = MarketsApi(transport)
         self.account = AccountApi(transport)
         self.positions = PositionsApi(self.account)
@@ -124,3 +134,19 @@ class StandXClient:
                 if hasattr(result, "__await__"):
                     await result
         self._closed = True
+
+    async def reauthenticate(self, access_token: str | None = None) -> str:
+        """Refresh REST and authenticated Market Streams with a new JWT.
+
+        When ``access_token`` is omitted, the configured wallet signer is used to
+        run the documented login flow. Order Response requests are never replayed.
+        """
+
+        if access_token is None:
+            result = await self.auth.login()
+            token = result.token
+        else:
+            self.auth.set_access_token(access_token)
+            token = access_token
+        await self.streams.reauthenticate(token)
+        return token

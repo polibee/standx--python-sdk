@@ -38,6 +38,12 @@ class AuthFakeTransport(FakeTransport):
         return self.incoming.pop(0)
 
 
+class ReauthenticationFakeTransport(AuthFakeTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.incoming.append('{"channel":"auth","data":{"code":200,"msg":"success"}}')
+
+
 class SequenceAuthFakeTransport(FakeTransport):
     def __init__(self) -> None:
         super().__init__()
@@ -179,6 +185,24 @@ def test_market_stream_authenticates_before_user_subscription() -> None:
 
     assert transport.sent[0] == '{"auth":{"token":"jwt-token","impersonate":"cv_1"}}'
     assert transport.sent[1] == '{"subscribe":{"channel":"order"}}'
+
+
+def test_market_stream_reauthenticates_existing_user_session_with_new_token() -> None:
+    transport = ReauthenticationFakeTransport()
+    stream = MarketStream("wss://example", transport=transport)  # type: ignore[arg-type]
+
+    async def scenario() -> None:
+        await stream.connect()
+        await stream.authenticate("old-token", impersonate="cv-1", streams=["order"])
+        await stream.reauthenticate("new-token")
+
+    asyncio.run(scenario())
+
+    assert stream.authenticated is True
+    assert transport.sent == [
+        '{"auth":{"token":"old-token","impersonate":"cv-1","streams":[{"channel":"order"}]}}',
+        '{"auth":{"token":"new-token","impersonate":"cv-1","streams":[{"channel":"order"}]}}',
+    ]
 
 
 def test_market_stream_reconnect_replays_auth_streams() -> None:

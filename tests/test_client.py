@@ -148,6 +148,20 @@ def test_client_can_clear_injected_access_token() -> None:
     assert client.http_transport.token is None
 
 
+def test_client_reauthenticate_updates_rest_authentication_state() -> None:
+    client = StandXClient(
+        ClientConfig(base_url="https://paper.example"),
+        access_token="old-jwt",
+    )
+
+    async def scenario() -> str:
+        return await client.reauthenticate("new-jwt")
+
+    assert asyncio.run(scenario()) == "new-jwt"
+    assert client.auth.token == "new-jwt"
+    assert client.http_transport.token == "new-jwt"
+
+
 def test_client_close_closes_created_streams_and_auth_transport() -> None:
     auth_transport = FakeAuthTransport()
     auth_transport.closed = False

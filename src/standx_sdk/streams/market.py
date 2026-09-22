@@ -177,6 +177,15 @@ class MarketStream(StreamBase):
         self._impersonate = impersonate
         self._auth_streams = None if streams is None else list(streams)
 
+    async def reauthenticate(self, token: str) -> None:
+        """Refresh an already authenticated user session without changing subscriptions."""
+
+        if not self._authenticated:
+            return
+        impersonate = self._impersonate
+        streams = None if self._auth_streams is None else list(self._auth_streams)
+        await self.authenticate(token, impersonate=impersonate, streams=streams)
+
     def _clear_auth(self) -> None:
         self._authenticated = False
         self._auth_token = None

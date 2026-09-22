@@ -1,0 +1,7 @@
+{
+  "token": "fixture-jwt-token",
+  "address": "0xabc",
+  "alias": "fixture-user",
+  "chain": "bsc",
+  "perpsAlpha": true
+}
