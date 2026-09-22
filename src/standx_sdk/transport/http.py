@@ -1,6 +1,7 @@
 """Async HTTP transport for documented StandX REST endpoints."""
 
 import json
+import math
 import time
 import uuid
 from collections.abc import Mapping
@@ -146,7 +147,9 @@ class HttpTransport:
         )
         retry_after = response.headers.get("retry-after")
         if retry_after is not None:
-            error.retry_after_seconds = float(retry_after)
+            parsed_retry_after = _parse_retry_after(retry_after)
+            if parsed_retry_after is not None:
+                error.retry_after_seconds = parsed_retry_after
         raise error
 
     async def aclose(self) -> None:
@@ -166,3 +169,11 @@ class HttpTransport:
 
 def json_module_dumps(value: Mapping[str, object]) -> str:
     return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+
+
+def _parse_retry_after(value: str) -> float | None:
+    try:
+        parsed = float(value)
+    except ValueError:
+        return None
+    return parsed if math.isfinite(parsed) and parsed >= 0 else None

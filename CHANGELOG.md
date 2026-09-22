@@ -53,6 +53,7 @@ All notable changes to this project are documented here.
 - Hardened Order Response request correlation: empty/duplicate pending IDs are rejected, and
   malformed responses cannot clear pending requests.
 - Normalized non-object Market Stream and Order Response envelopes to `PROTOCOL_ERROR`.
+- Made malformed or negative `Retry-After` headers harmless while preserving `RATE_LIMITED` errors.
 - Added protocol-error validation for non-integer Market Stream sequence values.
 - Restricted public account and market query methods to typed DTO responses; raw transport payloads are internal only.
 - Added typed `client.positions` and `client.trades` service views backed by the shared account transport.

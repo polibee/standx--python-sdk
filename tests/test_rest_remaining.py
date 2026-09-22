@@ -487,6 +487,23 @@ def test_rate_limit_response_maps_to_retryable_error() -> None:
     assert caught.value.retry_after_seconds == 2.0
 
 
+def test_invalid_retry_after_header_does_not_escape_rate_limit_mapping() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            429,
+            headers={"retry-after": "not-a-number"},
+            json={"code": 429, "message": "slow down"},
+        )
+
+    transport = HttpTransport("https://perps.standx.com", httpx.MockTransport(handler))
+    with pytest.raises(StandXError) as caught:
+        asyncio.run(transport.get("/api/query_balance"))
+
+    assert caught.value.code is ErrorCode.RATE_LIMITED
+    assert caught.value.retryable is True
+    assert caught.value.retry_after_seconds is None
+
+
 def test_http_transport_maps_auth_and_validation_errors() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("validation"):
